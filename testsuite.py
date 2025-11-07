@@ -11,11 +11,11 @@ platforms = [GEO, LEO, WL4GLTE, WL5G, WiFi, Ethernet]
 ccas = ["CUBIC", "HyStart", "HyStart++", "BBR", "SEARCH"]
 
 
-def default(platform):
+def default(platform, port = 5201):
 	client = iperf3.Client()
 	client.duration = 10  #Seconds
 	client.server_hostname = platform[1]
-	client.port = 5201 #50268
+	client.port = port #50268
 
 	result = client.run()
 
@@ -27,6 +27,20 @@ def default(platform):
 		print(f"Bandwidth: {result.sent_Mbps} Mbps (sent), {result.received_Mbps} Mbps (received)")
 		print(f"Retransmits: {result.retransmits}")
 condtions = [default]
+
+
+def readServerList(filename:str):
+	out = {}
+	with open(filename,"r") as file:
+		for line in file:
+			if(len(line)==0):
+				continue
+			(server,port,alg) = line.split(':')
+			out[server] = {port,alg}
+	return out
+
+serverList = readServerList("./serverlist.txt")
+
 
 for platform in platforms:
 	default(platform)

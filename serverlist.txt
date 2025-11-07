@@ -1,0 +1,6 @@
+mlcneta.cs.wpi.edu:5201:CUBIC
+mlcnetb.cs.wpi.edu:5201:SEARCH
+mlcnetc.cs.wpi.edu:5201:HyStart
+mlcnetd.cs.wpi.edu:5201:HyStart++
+glomma.cs.wpi.edu:5201:BBR
+ccasatpi.dyn.wpi.edu:5201:PLACEHOLDER
