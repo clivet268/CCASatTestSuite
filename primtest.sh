@@ -9,7 +9,8 @@ mkdir -p "${logpath}"
 mkdir -p "${runpath}"
 #chown -R "${USER}:${USER}" "${logpath}"
 #might help diagnose issues with a run
-sudo dmesg > "${runpath}/${date}_pre.log"
+#sudo dmesg > "${runpath}/${date}_pre.log"
+sudo dmesg --clear
 for i in {1..10}; do
 	#iperf3 -k 1 -c 41.226.22.119 -p 9239
 	iperf3 -k 1 -c ccasatpi.dyn.wpi.edu
