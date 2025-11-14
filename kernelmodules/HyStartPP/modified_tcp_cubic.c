@@ -156,7 +156,14 @@ static void logadditional(struct sock *sk, char *msg, int value)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	//struct bictcp *ca = inet_csk_ca(sk);
-        printk(KERN_INFO"[CCRG] [FP] [0x%p] [ADDITIONAL] [%s:%u]\n", tp, msg, value);
+        printk(KERN_INFO"[CCRG] [FP] [0x%p] [%s] [%u]\n", tp, msg, value);
+}
+
+static void logstate(struct sock *sk, char *type, char *msg)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+	//struct bictcp *ca = inet_csk_ca(sk);
+        printk(KERN_INFO"[CCRG] [FP] [0x%p] [%s] [%s]\n", tp, type, msg);
 }
 
 static void frameworklog(struct sock *sk)
@@ -219,7 +226,7 @@ __bpf_kfunc static void cubictcp_init(struct sock *sk)
 	if (hystartpp) {
 		ca->hspp_round_counter = 0;
 		ca->hspp_flag = HSPP_IN_SS;
-                logadditional(sk, "Enter SS", ca->hspp_flag);
+	        logstate(sk, "HSPP", "SS");
 		ca->hspp_last_round_minrtt = ~0U;	/* {RFC9406_L167} */
 		ca->hspp_current_round_minrtt = ~0U;	/* {RFC9406_L167} */
 		hystartpp_reset(sk);
@@ -433,7 +440,7 @@ static void hystartpp_adjust_cwnd(struct sock *sk, u32 acked) {
 			ca->hspp_css_baseline_minrtt = ca->hspp_current_round_minrtt;
 			ca->hspp_entered_css_at_round = ca->hspp_round_counter;
 			ca->hspp_flag = HSPP_IN_CSS;
-	                logadditional(sk, "Enter CSS", ca->hspp_flag);
+	                logstate(sk, "HSPP", "CSS");
 		}
 	}
 
@@ -446,7 +453,7 @@ static void hystartpp_adjust_cwnd(struct sock *sk, u32 acked) {
 	if (tcp_snd_cwnd(tp) >= tp->snd_ssthresh) {
 		/* Enter CA {RFC9406_L075} */
 		ca->hspp_flag = HSPP_DEACTIVE;
-	        logadditional(sk, "Exit HSPP", ca->hspp_flag);
+	        logstate(sk, "HSPP", "CA");
 	}
 }
 
@@ -459,7 +466,7 @@ __bpf_kfunc static void cubictcp_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 		return;
 
 	ca->hspp_acked = acked;
-	logadditional(sk, "recalc ssthresh", ca->hspp_flag);
+	//logadditional(sk, "recalc ssthresh", ca->hspp_flag);
 	
 	if (tcp_in_slow_start(tp)) {
 		if (hystartpp && (ca->hspp_flag != HSPP_DEACTIVE)) {	/* {RFC9406_L075} */
@@ -481,7 +488,7 @@ __bpf_kfunc static u32 cubictcp_recalc_ssthresh(struct sock *sk)
 	struct bictcp *ca = inet_csk_ca(sk);
 
 	ca->hspp_flag = HSPP_DEACTIVE;
-	logadditional(sk, "recalc ssthresh", ca->hspp_flag);
+	logstate(sk, "HSPP", "CA");
 
 	ca->epoch_start = 0;	/* end of epoch */
 
@@ -504,7 +511,7 @@ __bpf_kfunc static void cubictcp_state(struct sock *sk, u8 new_state)
 	    ((new_state == TCP_CA_CWR) || (new_state == TCP_CA_Recovery) || (new_state == TCP_CA_Loss))) {	/* {RFC9406_L245} */
 		//logprint(sk, "State Changed", 1);
 		ca->hspp_flag = HSPP_DEACTIVE;
-	        logadditional(sk, "Exit HSPP", ca->hspp_flag);
+	        logstate(sk, "HSPP", "CA");
 		return;
 	}
 
@@ -548,7 +555,7 @@ static void hystartpp_new_round(struct sock *sk)
 	    ((ca->hspp_round_counter - ca->hspp_entered_css_at_round) >= HSPP_CSS_ROUNDS)) {
 		tp->snd_ssthresh = tcp_snd_cwnd(tp);	/* Enter CA {RFC9406_L155} {RFC9406_L240} */
 		ca->hspp_flag = HSPP_DEACTIVE;
-	        logadditional(sk, "Exit HSPP", ca->hspp_flag);
+	        logstate(sk, "HSPP", "CA");
 	}
 }
 
@@ -574,7 +581,7 @@ static void hystartpp_adjust_params(struct sock *sk, u32 rtt)
 			/* We were in CSS and the RTT is now less, we entered CSS erroneously. Enter SS. {RFC9406_L152} {RFC9406_L227} */
 			ca->hspp_css_baseline_minrtt = ~0U;	/* In this implementation, the HSPP_IN_CSS flag indicates that we are in CSS, so this assignment is unnecessary. */
 			ca->hspp_flag = HSPP_IN_SS;
-	                logadditional(sk, "Enter SS", ca->hspp_flag);
+	                logstate(sk, "HSPP", "SS");
 		}
 	}
 }
