@@ -20,6 +20,7 @@ sudo sysctl net.core.wmem_max >> "${logpath}/${date}.sysconf"
 sudo sysctl net.core.rmem_default >> "${logpath}/${date}.sysconf"
 sudo sysctl net.core.wmem_default >> "${logpath}/${date}.sysconf"
 #run in -R so we dont have to worry about hole punching
+#no/less magic numbers/vars, pass them in
 for i in {1..10}; do
 	#iperf3 -k 1 -c 41.226.22.119 -p 9239
 	iperf3 -k 1 -c ccasatpi.dyn.wpi.edu
