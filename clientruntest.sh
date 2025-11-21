@@ -40,7 +40,7 @@ if [[ ! ((-e $"${lockfile}") && ($(cat ${lockfile}) == "${$}")) ]]; then
 	exit
 fi
 
-date=$(date '+%Y-%m-%d_%N')
+date=$(date '+%Y-%m-%d-%s_%N')
 logpath="testlogs"
 runpath="${logpath}/${date}"
 #Should be at least 5 even for testing
@@ -81,6 +81,7 @@ for ((i=1; i<=${numruns}; i++)); do
 	pid=$!
 	iperf3 -n 300K -c ccasatpi.dyn.wpi.edu
 	echo "${pid}"
+	sleep 1s
 	#chmod 666 "${runpath}/${date}_${i}.log"
 	#chown -R "${USER}" "${logpath}"
 	kill ${pid}
