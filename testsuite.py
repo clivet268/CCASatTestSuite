@@ -1,4 +1,6 @@
 import iperf3
+import os
+import paramiko
 
 GEO = ("GEO", "ccasatpi.dyn.wpi.edu")
 LEO = ("LEO", "ccasatpi.dyn.wpi.edu")
@@ -41,6 +43,33 @@ def readServerList(filename:str):
 
 serverList = readServerList("./serverlist.txt")
 
+def ssh(server):
+    lines = []
+    with open(".env","r") as envfile:
+        for line in envfile:
+            lines.append(line)
+        for line in lines:
+            parts = str(line).split('=')
+            for i in range(len(parts)):
+                parts[i]= parts[i].strip()
+            os.environ[parts[0]]=parts[1]
+
+    username = os.getenv('USERNAME')
+    password = os.getenv('PASSWORD')
+    location = os.getenv('LOCATION')
+
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client.connect(server,username=username,password=password)
+    client.exec_command(f"cd ~")
+    stdin, stdout,stderr =client.exec_command("sudo -S ./clientruntest.sh")
+    stdin.write(password+'\n')
+    stdin.flush()
+
+    stdin.close()
+    stdout.close()
+    stderr.close()
+    client.close()
 
 for platform in platforms:
 	default(platform)

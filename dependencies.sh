@@ -12,6 +12,8 @@
 #python dependencies
 pip3 install iperf3
 pip3 install matplotlib
+pip3 install paramiko
 
 #if environment is externally managed
 sudo apt install python3-matplotlib
+sudo apt install python3-paramiko
