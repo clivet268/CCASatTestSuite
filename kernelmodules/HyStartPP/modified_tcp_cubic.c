@@ -94,7 +94,7 @@ MODULE_PARM_DESC(hystart_low_window, "lower bound cwnd for hybrid slow start");
 module_param(hystart_ack_delta_us, int, 0644);
 MODULE_PARM_DESC(hystart_ack_delta_us, "spacing between ack's indicating train (usecs)");
 
-static int hystartpp = 0;
+static int hystartpp = 1;
 module_param(hystartpp, int, 0644);
 MODULE_PARM_DESC(hystartpp, "turn on/off hystart++ algorithm");
 // The following three lines are for monitoring purpose and will not be included in the final implementation.
@@ -156,14 +156,14 @@ static void logadditional(struct sock *sk, char *msg, int value)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	//struct bictcp *ca = inet_csk_ca(sk);
-        printk(KERN_INFO"[CCRG] [FP] [0x%p] [%s] [%u]\n", tp, msg, value);
+        printk(KERN_INFO"[CCRG] [FP] [0x%p] [%s] [%llu,%u]\n", tp, msg, tp->tcp_clock_cache, value);
 }
 
 static void logstate(struct sock *sk, char *type, char *msg)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	//struct bictcp *ca = inet_csk_ca(sk);
-        printk(KERN_INFO"[CCRG] [FP] [0x%p] [%s] [%s]\n", tp, type, msg);
+        printk(KERN_INFO"[CCRG] [FP] [0x%p] [%s] [%llu,%s]\n", tp, type, tp->tcp_clock_cache, msg);
 }
 
 static void frameworklog(struct sock *sk)
@@ -234,8 +234,10 @@ __bpf_kfunc static void cubictcp_init(struct sock *sk)
 		return;
 	}
 
-	if (hystart)
+	if (hystart){
 		bictcp_hystart_reset(sk);
+	        logstate(sk, "HS", "SS");
+	}
 
 	if (!hystart && initial_ssthresh)
 		tcp_sk(sk)->snd_ssthresh = initial_ssthresh;
