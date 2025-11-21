@@ -77,14 +77,17 @@ for ((i=1; i<=${numruns}; i++)); do
 	#iperf3 -k 1 -c 41.226.22.119 -p 9239
 	#iperf3 -k 1 -c ccasatpi.dyn.wpi.edu
 	#/var/log/kernel.log instead of dmesg
-	tail -f /var/log/kern.log >> ${runpath}/${date}_${i}.log &
-	pid=$!
-	iperf3 -n 300K -c ccasatpi.dyn.wpi.edu
-	echo "${pid}"
+	tail -f -n 0 /var/log/kern.log >> ${runpath}/${date}_${i}.log &
+	tailpid=$!
+	sudo tshark -Y "tcp.port==5201" >> ${runpath}/${date}_${i}.tshark.log &
+	tsharkpid=$!
+	iperf3 -n 300K -c ccasatpi.dyn.wpi.edu >> ${runpath}/${date}_${i}.iperf.log
+	echo "${tailpid}"
 	sleep 1s
 	#chmod 666 "${runpath}/${date}_${i}.log"
 	#chown -R "${USER}" "${logpath}"
-	kill ${pid}
+	kill ${tailpid}
+	kill ${tsharkpid}
 done
 
 rm "${lockfile}"
