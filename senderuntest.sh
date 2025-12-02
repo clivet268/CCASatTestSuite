@@ -1,16 +1,21 @@
 #!/bin/bash
 numruns=10
 locrun=0
-while getopts "ln:" arg; do
-  case $arg in
-    n) 	
-    	numruns=$OPTARG
-    	;;
-    l) 
-    	echo "Running in local mode"
-    	locrun=1
-    	;;
-  esac
+algorithm="cubic_hspp"
+while getopts "ln:a:" arg; do
+	case $arg in
+		n) 	
+    		numruns=$OPTARG
+    		;;
+    	l) 
+    		echo "Running in local mode"
+    		locrun=1
+    		;;
+		a)
+			algorithm=$OPTARG
+			echo "Using the ${algorithm} algorithm"
+			;;
+	esac
 done
 
 
@@ -68,8 +73,13 @@ mkdir -p "${runpath}"
 #/var/log/kernel.log instead of dmesg
 
 #set these as a part of setup
-sudo sysctl -w net.ipv4.tcp_congestion_control=cubic_hspp
+sudo sysctl -w net.ipv4.tcp_congestion_control="${algorithm}"
 sudo sysctl -w net.ipv4.tcp_no_metrics_save=1
+if [[ $(sudo sysctl net.ipv4.tcp_congestion_control) != "net.ipv4.tcp_congestion_control = ${algorithm}" ]]; then
+	echo "algorithm setting failed"
+	rm "${lockfile}"
+	exit
+fi
 sudo sysctl net.ipv4.tcp_congestion_control >> "${logpath}/${date}.sysconf"
 sudo sysctl net.ipv4.tcp_window_scaling >> "${logpath}/${date}.sysconf"
 sudo sysctl net.ipv4.tcp_rmem >> "${logpath}/${date}.sysconf"
@@ -103,7 +113,7 @@ for ((i=1; i<=numruns; i++)); do
 		echo Waiting for client...
 		iperf3 -s -1 #>> ${runpath}/${date}_${i}.iperf.log 2>> ${runpath}/${date}_${i}.iperf.log
 	else
-		iperf3 -n 300K -c ccasatpi.dyn.wpi.edu >> "${runpath}"/"${date}"_${i}.iperf.log
+		iperf3 -n 400K -c ccasatpi.dyn.wpi.edu >> "${runpath}"/"${date}"_${i}.iperf.log
 		#iperfpid=$!
 		#wait ${iperfpid}
 		#kill ${iperfpid}
