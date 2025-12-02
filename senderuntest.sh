@@ -20,8 +20,8 @@ rmlock() {
 	echo
 	echo "Removing lock..."
 	rm -f "${lockfile}"
-  	kill ${tailpid} > /dev/null 2> /dev/null
-	kill ${tsharkpid} > /dev/null 2> /dev/null
+  kill "${tailpid}" > /dev/null 2> /dev/null
+	kill "${tsharkpid}" > /dev/null 2> /dev/null
 	exit
 }
 
@@ -87,23 +87,23 @@ sudo sysctl net.core.wmem_default >> "${logpath}/${date}.sysconf"
 
 echo "Running ${numruns} test(s)..."
 sudo pkill iperf3
-for ((i=1; i<=${numruns}; i++)); do
+for ((i=1; i<=numruns; i++)); do
 	sleep ${sleeptime}s
 	#iperf3 -k 1 -c 41.226.22.119 -p 9239
 	#iperf3 -k 1 -c ccasatpi.dyn.wpi.edu
 	#/var/log/kernel.log instead of dmesg
-	tail -f -n 0 /var/log/kern.log >> ${runpath}/${date}_${i}.log &
+	tail -f -n 0 /var/log/kern.log >> "${runpath}"/"${date}"_${i}.log &
 	tailpid=$!
 	#sudo tshark -Y "tcp.port==5201" >> ${runpath}/${date}_${i}.tshark.log &
 	# Packet count is written to stderr so to suppress packet counts in terminal
 	#  do 2> /dev/null
-	sudo tshark -s 60 >> ${runpath}/${date}_${i}.tshark.log 2> /dev/null &
+	sudo tshark -s 60 >> "${runpath}"/"${date}"_${i}.tshark.log 2> /dev/null &
 	tsharkpid=$!
-	if [[ locrun == 0 ]]; then
+	if [[ $locrun == 0 ]]; then
 		echo Waiting for client...
 		iperf3 -s -1 #>> ${runpath}/${date}_${i}.iperf.log 2>> ${runpath}/${date}_${i}.iperf.log
 	else
-		iperf3 -n 300K -c ccasatpi.dyn.wpi.edu >> ${runpath}/${date}_${i}.iperf.log
+		iperf3 -n 300K -c ccasatpi.dyn.wpi.edu >> "${runpath}"/"${date}"_${i}.iperf.log
 		#iperfpid=$!
 		#wait ${iperfpid}
 		#kill ${iperfpid}
