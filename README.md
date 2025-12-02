@@ -4,5 +4,6 @@ The test suite for the conditions evaluated in the sattelite congestion controll
 TODO:
 
 - Fix ~0 in framework output for a few values sometimes
-- Generate graphs
+- Fix apparant control flow in logs
+- Generate comparison graphs 
 - Make per-CCA kernel modules
