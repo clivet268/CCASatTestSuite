@@ -110,7 +110,8 @@ def creategraphs(curflow, logtypeset, outputdir, flowpointer):
             #plt.figure(1)
             plt.plot(section[0], section[1], color=section[2])
         ax = plt.gca()
-        ax.set_xlim([0, 1000000000])
+        #in nsecs
+        ax.set_xlim([0, 6 * 1000000000])
         ax.set_ylim([0, 500000])
         plt.title(flowpointer)
 

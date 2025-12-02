@@ -1,10 +1,19 @@
 #!/bin/bash
-numruns=${1}
-if [[ "${numruns}" == "" ]]; then
-	numruns=10
-	#echo "Please run ${0} [the number of runs]"
-	#exit
-fi
+numruns=10
+locrun=0
+while getopts "ln:" arg; do
+  case $arg in
+    n) 	
+    	numruns=$OPTARG
+    	;;
+    l) 
+    	echo "Running in local mode"
+    	locrun=1
+    	;;
+  esac
+done
+
+
 
 
 rmlock() {
@@ -60,6 +69,7 @@ mkdir -p "${runpath}"
 
 #set these as a part of setup
 sudo sysctl -w net.ipv4.tcp_congestion_control=cubic_hspp
+sudo sysctl -w net.ipv4.tcp_no_metrics_save=1
 sudo sysctl net.ipv4.tcp_congestion_control >> "${logpath}/${date}.sysconf"
 sudo sysctl net.ipv4.tcp_window_scaling >> "${logpath}/${date}.sysconf"
 sudo sysctl net.ipv4.tcp_rmem >> "${logpath}/${date}.sysconf"
@@ -89,13 +99,17 @@ for ((i=1; i<=${numruns}; i++)); do
 	#  do 2> /dev/null
 	sudo tshark -s 60 >> ${runpath}/${date}_${i}.tshark.log 2> /dev/null &
 	tsharkpid=$!
-	echo Waiting for client...
-	iperf3 -s -1 #>> ${runpath}/${date}_${i}.iperf.log 2>> ${runpath}/${date}_${i}.iperf.log
-	#iperfpid=$!
-	#wait ${iperfpid}
-	#kill ${iperfpid}
-	#iperf3 -n 300K -c ccasatpi.dyn.wpi.edu >> ${runpath}/${date}_${i}.iperf.log
-	#echo "${tailpid}"
+	if [[ locrun == 0 ]]; then
+		echo Waiting for client...
+		iperf3 -s -1 #>> ${runpath}/${date}_${i}.iperf.log 2>> ${runpath}/${date}_${i}.iperf.log
+	else
+		iperf3 -n 300K -c ccasatpi.dyn.wpi.edu >> ${runpath}/${date}_${i}.iperf.log
+		#iperfpid=$!
+		#wait ${iperfpid}
+		#kill ${iperfpid}
+		#iperf3 -n 300K -c ccasatpi.dyn.wpi.edu >> ${runpath}/${date}_${i}.iperf.log
+		#echo "${tailpid}"
+	fi
 	sleep 1s
 	#chmod 666 "${runpath}/${date}_${i}.log"
 	#chown -R "${USER}" "${logpath}"
