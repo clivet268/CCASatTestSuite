@@ -1,3 +1,20 @@
 /output
 /testlogs
+/.idea
 
+/CCASatTestSuite.iml
+**/..module-common.o.cmd
+**/.Module.symvers.cmd
+**/.module-common.o
+**/.*.ko.cmd
+**/.*.mod.cmd
+**/.*.mod.o.cmd
+**/.*.o.cmd
+**/.modules.order.cmd
+**/*.mod
+**/*.mod.c
+**/*.mod.o
+**/*.o
+**/modules.order
+**/Module.symvers
+**/*.ko
