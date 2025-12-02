@@ -59,7 +59,7 @@ mkdir -p "${runpath}"
 #/var/log/kernel.log instead of dmesg
 
 #set these as a part of setup
-#sudo sysctl net.ipv4.tcp_congestion_control=cubic_hspp
+sudo sysctl -w net.ipv4.tcp_congestion_control=cubic_hspp
 sudo sysctl net.ipv4.tcp_congestion_control >> "${logpath}/${date}.sysconf"
 sudo sysctl net.ipv4.tcp_window_scaling >> "${logpath}/${date}.sysconf"
 sudo sysctl net.ipv4.tcp_rmem >> "${logpath}/${date}.sysconf"
