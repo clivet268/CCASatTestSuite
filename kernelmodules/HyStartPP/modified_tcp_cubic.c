@@ -208,7 +208,9 @@ static inline void hystartpp_reset(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct bictcp *ca = inet_csk_ca(sk);
-
+        
+        logadditional(sk, "HSPP OLD LAST ROUND MINRTT", ca->hspp_last_round_minrtt);
+        logadditional(sk, "HSPP NEW LAST ROUND MINRTT", ca->hspp_current_round_minrtt);
         ca->hspp_last_round_minrtt = ca->hspp_current_round_minrtt;	/* {RFC9406_L186} */
         ca->hspp_current_round_minrtt = ~0U;				/* {RFC9406_L187} */
 	ca->hspp_rttsample_counter = 0;					/* {RFC9406_L188} */
@@ -439,6 +441,11 @@ static void hystartpp_adjust_cwnd(struct sock *sk, u32 acked) {
 		rtt_thresh = HSPP_RTT_THRESH(rtt_thresh);
 		if (ca->hspp_current_round_minrtt >= (ca->hspp_last_round_minrtt + rtt_thresh)) {
 			/* Enter CSS */
+
+                        logadditional(sk, "HSPP OLD ENTERED CSS AT ROUND", ca->hspp_entered_css_at_round);
+                        logadditional(sk, "HSPP NEW ENTERED CSS AT ROUND", ca->hspp_round_counter);
+                        logadditional(sk, "HSPP BASELINE OLD BASELINEMINRTT", ca->hspp_css_baseline_minrtt);
+                        logadditional(sk, "HSPP BASELINE NEW BASELINEMINRTT", ca->hspp_current_round_minrtt);
 			ca->hspp_css_baseline_minrtt = ca->hspp_current_round_minrtt;
 			ca->hspp_entered_css_at_round = ca->hspp_round_counter;
 			ca->hspp_flag = HSPP_IN_CSS;
@@ -552,10 +559,16 @@ static void hystartpp_new_round(struct sock *sk)
 	//logadditional(sk, "New Round", 0);
 	hystartpp_reset(sk);
 	ca->hspp_round_counter++;
+	logadditional(sk, "HSPP ROUND COUNTER", ca->hspp_round_counter);
+	logadditional(sk, "HSPP ENTERED AT ROUND", ca->hspp_entered_css_at_round);
+	logadditional(sk, "HSPP IN CSS", (ca->hspp_flag == HSPP_IN_CSS));
+	logadditional(sk, "HSPP ROUND COUNTER DIFF", ca->hspp_round_counter - ca->hspp_entered_css_at_round);
+	logadditional(sk, "HSPP ROUND COUNTER DIFF EXCEEDS", (ca->hspp_round_counter - ca->hspp_entered_css_at_round) > HSPP_CSS_ROUNDS);
 
 	if ((ca->hspp_flag == HSPP_IN_CSS) &&
 	    ((ca->hspp_round_counter - ca->hspp_entered_css_at_round) >= HSPP_CSS_ROUNDS)) {
 		tp->snd_ssthresh = tcp_snd_cwnd(tp);	/* Enter CA {RFC9406_L155} {RFC9406_L240} */
+		logadditional(sk, "HSPP CSS -> CA", 0);
 		ca->hspp_flag = HSPP_DEACTIVE;
 	        logstate(sk, "HSPP", "CA");
 	}
