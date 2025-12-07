@@ -24,6 +24,8 @@ def scaletomin(x):
     return xscaled
 
 def creategraphs(curflow, logtypeset, outputdir, flowpointer):
+    scalefactor = 1000000 # ms
+    displayseconds = 1 # 1 second window size
     graphcontents=[[]] * len(graphs)
     # For every line in the current flow
     for line in curflow:
@@ -39,6 +41,7 @@ def creategraphs(curflow, logtypeset, outputdir, flowpointer):
                     graphcontents[i].append((values[targetvalues[0]],values[targetvalues[1]]))
               
     #i dont like this but it will work for now
+    deltatimestart = 0
     for i in range(len(graphcontents)):
         #print(i)
         #print(graphcontents)
@@ -56,12 +59,14 @@ def creategraphs(curflow, logtypeset, outputdir, flowpointer):
         #:(
         sectionx=[]
         sectiony=[]
-        lastcolor="Pink"
+        lastcolor=""
         for i in range(len(contents)):
             x,y = contents[i]
             #print(f"y: {y}")
             try:
                 int(x)
+                if (deltatimestart == 0):
+                    deltatimestart = int(x)
             except ValueError:
                 print("Malformed input, skipping")
                 continue
@@ -72,10 +77,12 @@ def creategraphs(curflow, logtypeset, outputdir, flowpointer):
             except ValueError:
                 #print(f"a string: {y}")
                 color = "Pink"
+                print("enter " + y + "at " + str((int(x)-deltatimestart)/scalefactor))
                 if y in colormap:
                     color = colormap.get(y)
+                if lastcolor == "":
+                    lastcolor = color
                 
-                lastcolor = color
                 # A state change indicator does not have all the packet info, get the next viable 
                 #  packet to close this section
                 while i < len(contents)-1:
@@ -87,7 +94,8 @@ def creategraphs(curflow, logtypeset, outputdir, flowpointer):
                     except ValueError:
                         i += 1
                 if sectionx and sectiony:
-                    graphsections.append((sectionx, sectiony, color))
+                    graphsections.append((sectionx, sectiony, lastcolor))
+                lastcolor = color
                 
                 sectionx=[]
                 sectiony=[]
@@ -98,20 +106,19 @@ def creategraphs(curflow, logtypeset, outputdir, flowpointer):
             graphsections.append((sectionx, sectiony, lastcolor))
         #plt.close()
         
-        
         for section in graphsections:
             #TODO dynamic scaling
             for i in range(len(section[0])):
                 # Adjust all x to the first value being 0
                 section[0][i] -= minscale 
                 # Adjust all x from nsec to msec
-                #section[0][i] = section[0][i]/1000000
+                section[0][i] = section[0][i]/scalefactor
             #print(f"uhstar {section[0]}")
             #plt.figure(1)
             plt.plot(section[0], section[1], color=section[2])
         ax = plt.gca()
         #in nsecs
-        ax.set_xlim([0, 6 * 1000000000])
+        ax.set_xlim([0, displayseconds * 1000000000/scalefactor])
         ax.set_ylim([0, 500000])
         plt.title(flowpointer)
 
