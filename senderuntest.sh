@@ -2,7 +2,11 @@
 numruns=10
 locrun=0
 algorithm="cubic_hspp"
-while getopts "ln:a:" arg; do
+runid="noid"
+rangemin=400
+rangemax=400
+rangestep=100
+while getopts "ln:a:i:t:" arg; do
 	case $arg in
 		n) 	
     		numruns=$OPTARG
@@ -15,6 +19,30 @@ while getopts "ln:a:" arg; do
 			algorithm=$OPTARG
 			echo "Using the ${algorithm} algorithm"
 			;;
+		i)
+			runid=$OPTARG
+			echo "Run ID ${runid}"
+			;;
+		t)
+			#range=("${OPTARG//:/ }")
+			IFS=':'
+      read -ra range <<< "$OPTARG"
+			#echo "range invalid, try format [min(:max)](:step), in Kilobytes, "
+			# "=~ ^[0-9]+$" means check if its a number string
+			if [[ ${range[0]} =~ ^[0-9]+$ ]]; then
+        rangemin=${range[0]}
+				rangemax=${range[0]}
+      fi
+      if [[ ${range[1]} =~ ^[0-9]+$ ]]; then
+      	rangemax=${range[1]}
+			  if [[ ${range[2]} =~ ^[0-9]+$ ]]; then
+				  rangestep=${range[2]}
+			  fi
+      fi
+			echo "Run ID ${runid}"
+			;;
+	  *)
+	    echo "One or more flags not understood"
 	esac
 done
 
@@ -25,7 +53,7 @@ rmlock() {
 	echo
 	echo "Removing lock..."
 	rm -f "${lockfile}"
-  kill "${tailpid}" > /dev/null 2> /dev/null
+	kill "${tailpid}" > /dev/null 2> /dev/null
 	kill "${tsharkpid}" > /dev/null 2> /dev/null
 	exit
 }
@@ -59,9 +87,10 @@ fi
 
 date=$(date '+%Y-%m-%d-%s_%N')
 basepath=""
-logpath="${basepath}testlogs/"
+logpath="${basepath}testlogs/${runid}/"
 runpath="${logpath}${date}"
 #Should be at least 5 even for testing
+# unless network is 100% your own
 sleeptime=5
 
 #since we must run dmesg as root i chown and change perms so that the user can read the file like normal
@@ -94,38 +123,42 @@ sudo sysctl net.core.wmem_default >> "${logpath}/${date}.sysconf"
 #use ps for flags that include iperf, then abort and flag
 #lookup how to get process id for killing
 #/var/log/kernel.log instead of dmesg
-
-echo "Running ${numruns} test(s)..."
+setdir=""
+if [[ "$rangemin" == "$rangemax" ]]; then
+  echo "Running ${numruns} test(s)..."
+else
+  echo "Doing $(( ((rangemax + rangestep) - rangemin) / rangestep)) sets of ${numruns} test(s), transfer sizes ranging from ${rangemin}K to ${rangemax}K in steps of ${rangestep}K"
+fi
 sudo pkill iperf3
-for ((i=1; i<=numruns; i++)); do
-	sleep ${sleeptime}s
-	#iperf3 -k 1 -c 41.226.22.119 -p 9239
-	#iperf3 -k 1 -c ccasatpi.dyn.wpi.edu
-	#/var/log/kernel.log instead of dmesg
-	tail -f -n 0 /var/log/kern.log >> "${runpath}"/"${date}"_${i}.log &
-	tailpid=$!
-	#sudo tshark -Y "tcp.port==5201" >> ${runpath}/${date}_${i}.tshark.log &
-	# Packet count is written to stderr so to suppress packet counts in terminal
-	#  do 2> /dev/null
-	sudo tshark -s 60 >> "${runpath}"/"${date}"_${i}.tshark.log 2> /dev/null &
-	tsharkpid=$!
-	if [[ $locrun == 0 ]]; then
-		echo Waiting for client...
-		iperf3 -s -1 #>> ${runpath}/${date}_${i}.iperf.log 2>> ${runpath}/${date}_${i}.iperf.log
-	else
-		iperf3 -n 400K -c ccasatpi.dyn.wpi.edu >> "${runpath}"/"${date}"_${i}.iperf.log
-		#iperfpid=$!
-		#wait ${iperfpid}
-		#kill ${iperfpid}
-		#iperf3 -n 300K -c ccasatpi.dyn.wpi.edu >> ${runpath}/${date}_${i}.iperf.log
-		#echo "${tailpid}"
-	fi
-	sleep 1s
-	#chmod 666 "${runpath}/${date}_${i}.log"
-	#chown -R "${USER}" "${logpath}"
-	sudo pkill iperf3
-	kill ${tailpid}
-	kill ${tsharkpid}
+for (( r = rangemin; r <= (rangemax); r += rangestep )); do
+  for (( i = 1; i <= numruns; i++ )); do
+  	sleep ${sleeptime}s
+    echo "${r}K transfer"
+  	#iperf3 -k 1 -c 41.226.22.119 -p 9239
+  	#iperf3 -k 1 -c ccasatpi.dyn.wpi.edu
+  	#/var/log/kernel.log instead of dmesg
+  	tail -f -n 0 /var/log/kern.log >> "${runpath}"/"${date}"_${i}.log &
+  	tailpid=$!
+  	#sudo tshark -Y "tcp.port==5201" >> ${runpath}/${date}_${i}.tshark.log &
+  	# Packet count is written to stderr so to suppress packet counts in terminal
+  	#  do 2> /dev/null
+  	sudo tshark -s 60 >> "${runpath}"/"${date}"_${i}.tsharklog 2> /dev/null &
+  	tsharkpid=$!
+  	if [[ $locrun == 0 ]]; then
+  		echo Waiting for client...
+  		iperf3 -n "${r}K" -s -1 #>> ${runpath}/${date}_${i}.iperf.log 2>> ${runpath}/${date}_${i}.iperf.log
+  	else
+  		iperf3 -n "${r}K" -c ccasatpi.dyn.wpi.edu #>> "${runpath}"/"${date}"_${i}.iperflog
+  	fi
+  	sleep 0.1s
+  	#chmod 666 "${runpath}/${date}_${i}.log"
+  	#chown -R "${USER}" "${logpath}"
+  	sudo pkill iperf3
+  	kill ${tailpid}
+  	kill ${tsharkpid}
+  	echo "runconf:{" >> "${runpath}"/"${date}"_${i}.log
+  	echo "size:${r}K" >> "${runpath}"/"${date}"_${i}.log
+  	echo "}" >> "${runpath}"/"${date}"_${i}.log
+  done
 done
-
 rm "${lockfile}"
