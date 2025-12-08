@@ -561,9 +561,10 @@ static void hystartpp_new_round(struct sock *sk)
 	ca->hspp_round_counter++;
 	logadditional(sk, "HSPP ROUND COUNTER", ca->hspp_round_counter);
 	logadditional(sk, "HSPP ENTERED AT ROUND", ca->hspp_entered_css_at_round);
-	logadditional(sk, "HSPP IN CSS", (ca->hspp_flag == HSPP_IN_CSS));
+	//logadditional(sk, "HSPP IN CSS", (ca->hspp_flag == HSPP_IN_CSS));
 	logadditional(sk, "HSPP ROUND COUNTER DIFF", ca->hspp_round_counter - ca->hspp_entered_css_at_round);
-	logadditional(sk, "HSPP ROUND COUNTER DIFF EXCEEDS", (ca->hspp_round_counter - ca->hspp_entered_css_at_round) > HSPP_CSS_ROUNDS);
+	//logadditional(sk, "HSPP ROUND COUNTER DIFF EXCEEDS", (ca->hspp_round_counter - ca->hspp_entered_css_at_round) > HSPP_CSS_ROUNDS);
+	logadditional(sk, "HSPP CSS AND ROUND COUNTER DIFF EXCEEDS", (ca->hspp_flag == HSPP_IN_CSS) & ((ca->hspp_round_counter - ca->hspp_entered_css_at_round) > HSPP_CSS_ROUNDS));
 
 	if ((ca->hspp_flag == HSPP_IN_CSS) &&
 	    ((ca->hspp_round_counter - ca->hspp_entered_css_at_round) >= HSPP_CSS_ROUNDS)) {
