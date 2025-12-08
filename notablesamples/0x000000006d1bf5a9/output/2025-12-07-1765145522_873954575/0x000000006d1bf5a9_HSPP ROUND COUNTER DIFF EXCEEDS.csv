@@ -1,0 +1,9 @@
+now_us,bytes_acked,mss,rtt_us,tp_deliver_rate,tp_interval,tp_delivered,lost_pkt,total_retrans_pkt,app_limited,snd_nxt,sk_pacing_rate
+6146425188597,0
+6146440631479,0
+6146453224816,0
+6146468761585,0
+6146482541174,0
+6146504769427,1
+6146559450975,1
+6147454150453,0
