@@ -27,8 +27,10 @@ def scaletomin(x):
 def creategraphs(curflow, logtypeset, outputdir, flowpointer):
     #print(f"graphing {flowpointer} with {curflow}")
     scalefactor = 1000000 # ms
-    bytescale = 1 * 1000000 # 1 x 1MB
-    displayseconds = 2 # 1 second window size
+    bytescale = 2 * 1000000 # 1 x 1MB
+    bytemin = 0 * 1000000 # 1 x 1MB
+    displayseconds = 1 # seconds window size
+    displayoffset = 0 # seconds start offset
     graphcontents=0
     graphcontents=[[]] * len(graphs)
     # For every line in the current flow
@@ -125,8 +127,8 @@ def creategraphs(curflow, logtypeset, outputdir, flowpointer):
             plt.plot(section[0], section[1], color=section[2])
         ax = plt.gca()
         #in nsecs
-        ax.set_xlim([0, displayseconds * 1000000000/scalefactor])
-        ax.set_ylim([0, bytescale])
+        ax.set_xlim([displayoffset * 1000000000/scalefactor, displayseconds * 1000000000/scalefactor])
+        ax.set_ylim([bytemin, bytescale])
         plt.title(flowpointer)
 
         #plt.show()
@@ -149,6 +151,8 @@ def processDir(parent, dir):
 
 def processalllogs():
     #for (root,dirs,files) in os.walk("/home/clivet268/Downloads/KernelLearnel/CCASatTestSuite/testlogs/.",topdown=True):
+    if not os.path.exists(f"{outputdir}"):
+        os.makedirs(f"{outputdir}")
     for dirs in os.listdir(testlogsdir):
         #isdir = os.path.isdir(f"{testlogsdir}{dirs}")
         #print(f"{testlogsdir}{dirs} {isdir}\n")
