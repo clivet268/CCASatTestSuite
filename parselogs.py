@@ -6,7 +6,8 @@ filepath=os.getcwd()
 testlogsdir=f"{filepath}/testlogs/"
 outputdir=f"{filepath}/output/"
 frameworkdir=f"{outputdir}/framework/"
-tracelengthfilter=10
+tracelengthfilter=60
+desiredparsedlogs=["FRAMEWORK"]
 
 csvheader="now_us,bytes_acked,mss,rtt_us,tp_deliver_rate,tp_interval,tp_delivered,lost_pkt,total_retrans_pkt,app_limited,snd_nxt,sk_pacing_rate"
 
@@ -24,8 +25,11 @@ def scaletomin(x):
     return xscaled
 
 def creategraphs(curflow, logtypeset, outputdir, flowpointer):
+    #print(f"graphing {flowpointer} with {curflow}")
     scalefactor = 1000000 # ms
-    displayseconds = 1 # 1 second window size
+    bytescale = 1 * 1000000 # 1 x 1MB
+    displayseconds = 2 # 1 second window size
+    graphcontents=0
     graphcontents=[[]] * len(graphs)
     # For every line in the current flow
     for line in curflow:
@@ -48,7 +52,10 @@ def creategraphs(curflow, logtypeset, outputdir, flowpointer):
         contents = graphcontents[i]
         contents.sort(key=lambda a:a[0])
         xs = [xy[0] for xy in contents]
-        minscale = int(min(xs))
+        if xs:
+            minscale = int(min(xs))
+        else:
+            continue
         
         #print(f"contents: {contents}")
 
@@ -119,34 +126,50 @@ def creategraphs(curflow, logtypeset, outputdir, flowpointer):
         ax = plt.gca()
         #in nsecs
         ax.set_xlim([0, displayseconds * 1000000000/scalefactor])
-        ax.set_ylim([0, 500000])
+        ax.set_ylim([0, bytescale])
         plt.title(flowpointer)
 
         #plt.show()
         plt.savefig(f"{outputdir}{flowpointer}_graphtest.png")
         plt.clf()
-    
+
+def processDir(parent, dir):
+    for dirs in os.listdir(f"{testlogsdir}{parent}{dir}"):
+        #isdir = os.path.isdir(f"{testlogsdir}{parent}{dir}{dirs}")
+        #print(f"{testlogsdir}{parent}{dir}{dirs} {isdir}\n")
+        if os.path.isdir(f"{testlogsdir}{dir}{dirs}"):
+            if not os.path.exists(f"{outputdir}{parent}{dir}{dirs}"):
+                os.makedirs(f"{outputdir}{parent}{dir}{dirs}")
+            if not os.path.exists(f"{frameworkdir}{parent}{dir}{dirs}"):
+                os.makedirs(f"{frameworkdir}{parent}{dir}{dirs}")
+            processDir("",f"{parent}{dir}{dirs}/")
+        else:
+            if f"{dirs[-4:]}" == ".log":
+                processlog(f"{parent}{dir}{dirs}")
+
 def processalllogs():
     #for (root,dirs,files) in os.walk("/home/clivet268/Downloads/KernelLearnel/CCASatTestSuite/testlogs/.",topdown=True):
     for dirs in os.listdir(testlogsdir):
-        #isdir = os.path.isdir(os.path.join(testlogsdir,dirs))
-        #print(f"{dirs} {isdir}\n")
+        #isdir = os.path.isdir(f"{testlogsdir}{dirs}")
+        #print(f"{testlogsdir}{dirs} {isdir}\n")
         if os.path.isdir(f"{testlogsdir}{dirs}"):
-            print(f"{dirs}\n")
             if not os.path.exists(f"{outputdir}{dirs}"):
-                os.makedirs(outputdir + dirs)
+                os.makedirs(f"{outputdir}{dirs}")
             if not os.path.exists(f"{frameworkdir}{dirs}"):
-                os.makedirs(frameworkdir + dirs)
-            for log in os.listdir(f"{testlogsdir}{dirs}"):
-                print("%s"%log)
-                processlog(f"{dirs}/{log}")
-        
+                os.makedirs(f"{frameworkdir}{dirs}")
+            processDir("",f"{dirs}/")
+        else:
+            if f"{dirs[-4:]}" == ".log":
+                processlog(f"{dirs}")
+
+
 def processlog(logfilepath):
     try:
         with open(f"{testlogsdir}{logfilepath}", "r") as inputfile:
             #might want to enforce using this to make it backwards compatible?
             #collections.OrderedDict()
             flows = {}
+            logtypeset = set()
             for line in inputfile:
                 # remove "]" at end
                 line = line[:-2]
@@ -156,7 +179,6 @@ def processlog(logfilepath):
                 line = line[line.index("[CCRG]"):]
                 #print(line)
                 pieces = line.split('] [')
-                logtypeset = set()
                 
                 #TODO no magic number
                 if len(pieces) == 5:
@@ -164,35 +186,32 @@ def processlog(logfilepath):
                         if not pieces[2] in flows:
                             flows[pieces[2]] = []
                         flows[pieces[2]].append((pieces[3], pieces[4].split(',')))
-                        logtypeset.add(pieces[3])
-                        #print(f"{pieces[2]}")
-                        #print(f"{flows[pieces[2]]}")
-                        #if pieces[4] == "FRAMEWORK":
-                            #outputfile.write(pieces[5]+"\n")
+                        logtypeset.add(f"{pieces[3]}")
+                        print(f"{pieces[3]}")
+
+            print(f"{logtypeset}")
             #Create all different log types relevant to this run
             for flowpointer in flows.keys():
                 print(f"Flowpointer:{flowpointer}")
                 curflow = flows.get(flowpointer)
+                #print(f"all of curflow in file{logfilepath}:{curflow}")
                 if len(curflow) <= tracelengthfilter:
                     print(f"Shorter than length filter of {tracelengthfilter}, skipping")
                     continue
                 else:
                     for logtype in logtypeset:
-                        # Parsing to general log types
-                        logspecificfilepath=f"{outputdir}{logfilepath[:-4]}_{logtype}.csv"
-                        #print(f"Writing to {logspecificfilepath}\n")
-                        with open(logspecificfilepath, "w+") as outputfile:
-                            outputfile.write(csvheader + "\n")
-                            for line in curflow:
-                                linetype, values = line
-                                if linetype == logtype:
-                                    outputfile.write(",".join(values) + "\n")
+                        if logtype in desiredparsedlogs:
+                            # Parsing to general log types
+                            logspecificfilepath=f"{outputdir}{logfilepath[:-4]}_{logtype}.csv"
+                            #print(f"Writing to {logspecificfilepath}\n")
+                            with open(logspecificfilepath, "w+") as outputfile:
+                                outputfile.write(csvheader + "\n")
+                                for line in curflow:
+                                    linetype, values = line
+                                    if linetype == logtype:
+                                        outputfile.write(",".join(values) + "\n")
                     creategraphs(curflow, logtypeset, f"{outputdir}{logfilepath[:-4]}", flowpointer)
-                        
-                            
-    
-        
-            
+
     except FileExistsError:
         print(f"{outputfilepath} already exists")
     #except FileNotFoundError:
