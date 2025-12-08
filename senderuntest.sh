@@ -132,33 +132,38 @@ fi
 sudo pkill iperf3
 for (( r = rangemin; r <= (rangemax); r += rangestep )); do
   for (( i = 1; i <= numruns; i++ )); do
+  	thislogdir="${runpath}/${r}K/"
+  	thislog="${date}_${i}_${r}K"
+	mkdir -p "${thislogdir}"
   	sleep ${sleeptime}s
     echo "${r}K transfer"
   	#iperf3 -k 1 -c 41.226.22.119 -p 9239
   	#iperf3 -k 1 -c ccasatpi.dyn.wpi.edu
   	#/var/log/kernel.log instead of dmesg
-  	tail -f -n 0 /var/log/kern.log >> "${runpath}"/"${date}"_${i}.log &
+  	tail -f -n 0 /var/log/kern.log >> "${thislogdir}${thislog}.log" &
   	tailpid=$!
   	#sudo tshark -Y "tcp.port==5201" >> ${runpath}/${date}_${i}.tshark.log &
   	# Packet count is written to stderr so to suppress packet counts in terminal
   	#  do 2> /dev/null
-  	sudo tshark -s 60 >> "${runpath}"/"${date}"_${i}.tsharklog 2> /dev/null &
+  	sudo tshark -s 60 >> "${thislogdir}${thislog}.tsharklog" 2> /dev/null &
   	tsharkpid=$!
+  	echo "Waiting for client..."
   	if [[ $locrun == 0 ]]; then
-  		echo Waiting for client...
-  		iperf3 -n "${r}K" -s -1 #>> ${runpath}/${date}_${i}.iperf.log 2>> ${runpath}/${date}_${i}.iperf.log
+  		iperf3 -n "${r}K" -s -1 >> "${thislogdir}${thislog}.iperflog"
   	else
-  		iperf3 -n "${r}K" -c ccasatpi.dyn.wpi.edu #>> "${runpath}"/"${date}"_${i}.iperflog
+  		iperf3 -n "${r}K" -c ccasatpi.dyn.wpi.edu >> "${thislogdir}${thislog}.iperflog"
   	fi
+  	echo "Complete"
   	sleep 0.1s
   	#chmod 666 "${runpath}/${date}_${i}.log"
   	#chown -R "${USER}" "${logpath}"
   	sudo pkill iperf3
   	kill ${tailpid}
+  	sleep 0.5s
   	kill ${tsharkpid}
-  	echo "runconf:{" >> "${runpath}"/"${date}"_${i}.log
-  	echo "size:${r}K" >> "${runpath}"/"${date}"_${i}.log
-  	echo "}" >> "${runpath}"/"${date}"_${i}.log
+  	echo "runconf:{" >> "${thislogdir}${thislog}.log"
+  	echo "size:${r}K" >> "${thislogdir}${thislog}.log"
+  	echo "}" >> "${thislogdir}${thislog}.log"
   done
 done
 rm "${lockfile}"
