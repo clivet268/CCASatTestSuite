@@ -1,0 +1,10 @@
+Connecting to host ccasatpi.dyn.wpi.edu, port 5201
+[  5] local 130.215.126.234 port 45102 connected to 130.215.248.198 port 5201
+[ ID] Interval           Transfer     Bitrate         Retr  Cwnd
+[  5]   0.00-1.00   sec   512 KBytes  4.19 Mbits/sec    1    210 KBytes       
+- - - - - - - - - - - - - - - - - - - - - - - - -
+[ ID] Interval           Transfer     Bitrate         Retr
+[  5]   0.00-1.00   sec   512 KBytes  4.19 Mbits/sec    1             sender
+[  5]   0.00-1.01   sec   512 KBytes  4.15 Mbits/sec                  receiver
+
+iperf Done.
