@@ -1,5 +1,6 @@
 import os
 import matplotlib.pyplot as plt
+import argparse
 
 #filepath="/home/clivet268/Downloads/KernelLearnel/CCASatTestSuite/testlogs/2025-11-11_307677302/2025-11-11_307677302_1.log"
 filepath=os.getcwd()
@@ -25,6 +26,11 @@ def scaletomin(x):
     return xscaled
 
 def creategraphs(curflow, logtypeset, outputdir, flowpointer):
+    if "HSPP" in logtypeset:
+        bytesgraphcont=[("FRAMEWORK", [0,1]), ("HSPP", [0,1])]
+    else:
+        bytesgraphcont=[("FRAMEWORK", [0,1]), ("HS", [0,1])]
+    
     #print(f"graphing {flowpointer} with {curflow}")
     scalefactor = 1000000 # ms
     bytescale = 2 * 1000000 # 1 x 1MB
@@ -91,7 +97,6 @@ def creategraphs(curflow, logtypeset, outputdir, flowpointer):
                     color = colormap.get(y)
                 if lastcolor == "":
                     lastcolor = color
-                
                 # A state change indicator does not have all the packet info, get the next viable 
                 #  packet to close this section
                 while i < len(contents)-1:
@@ -124,7 +129,12 @@ def creategraphs(curflow, logtypeset, outputdir, flowpointer):
                 section[0][i] = section[0][i]/scalefactor
             #print(f"uhstar {section[0]}")
             #plt.figure(1)
-            plt.plot(section[0], section[1], color=section[2])
+            tcolor = section[2] 
+            if tcolor == "":
+                tcolor = "Pink"
+                #TODO why
+                print("!!!!!!")
+            plt.plot(section[0], section[1], color=tcolor)
         ax = plt.gca()
         #in nsecs
         ax.set_xlim([displayoffset * 1000000000/scalefactor, displayseconds * 1000000000/scalefactor])
@@ -220,4 +230,15 @@ def processlog(logfilepath):
         print(f"{outputfilepath} already exists")
     #except FileNotFoundError:
     #    print("Cannot find file " + logfilepath)
+    
+
+#parser = argparse.ArgumentParser()
+#parser.add_argument("-wab", "--maxb", maxb="{w}indow m{a}x mega{b}ytes")
+#parser.add_argument("-wib", "--minb", minb="{w}indow m{i}n mega{b}ytes")
+#parser.add_argument("-wss", "--startsec", startsec="{w}indow {s}tarting {s}econds")
+#parser.add_argument("-wes", "--endsec", endsec="{w}indow {e}nding {s}econds")
+#args = parser.parse_args()
+#for arg in args:
+#    if arg:
+        #todo
 processalllogs()
