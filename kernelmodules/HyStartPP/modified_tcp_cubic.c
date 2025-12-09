@@ -187,8 +187,8 @@ static void frameworklog(struct sock *sk)
          * }-}
          */
          // get clock time from KERN_INFO, tp->tcp_clock_cache or elsewhere?
-	printk(KERN_INFO"[CCRG] [FP] [0x%p] [FRAMEWORK] [%llu,%llu,%u,%u,%u,%u,%u,%u,%u,%u,%u,%lu]\n", sk,
-	  tp->tcp_clock_cache, tp->bytes_acked, tp->mss_cache, tp->srtt_us, tp->rate_delivered, tp->rate_interval_us, tp->delivered, tp->lost_out, tp->total_retrans, (tp->app_limited ? 1 : 0), tp->snd_nxt, sk->sk_pacing_rate);
+	printk(KERN_INFO"[CCRG] [FP] [0x%p] [FRAMEWORK] [%llu,%llu,%u,%u,%u,%u,%u,%u,%u,%u,%u,%lu,%u]\n", sk,
+	  tp->tcp_clock_cache, tp->bytes_acked, tp->mss_cache, tp->srtt_us, tp->rate_delivered, tp->rate_interval_us, tp->delivered, tp->lost_out, tp->total_retrans, (tp->app_limited ? 1 : 0), tp->snd_nxt, sk->sk_pacing_rate, tp->snd_una);
 	//}
 }
 
