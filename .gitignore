@@ -1,5 +1,6 @@
 /output
 /testlogs
+.env
 /.idea
 
 /CCASatTestSuite.iml
