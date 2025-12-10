@@ -7,4 +7,4 @@ TODO:
 - Fix apparant control flow in logs
 - Generate comparison graphs
 - Shared graphing states for graphing to aid in adding more algos
-- Make per-CCA kernel modules
+- Make per-CCA kernel modules -> 2 done
