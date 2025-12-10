@@ -46,18 +46,6 @@
 #define HYSTART_DELAY_MAX	(16000U)	/* 16 ms */
 #define HYSTART_DELAY_THRESH(x)	clamp(x, HYSTART_DELAY_MIN, HYSTART_DELAY_MAX)
 
-/* {RFC9406_L253} */
-#define HSPP_MIN_RTT_THRESH	(4000U)		/*  4 ms	*/
-#define HSPP_MAX_RTT_THRESH	(16000U)	/* 16 ms	*/
-#define HSPP_CSS_MIN_RTT_DIV	3		/* RTT threshold is computed as RTT / (2^HSPP_CSS_MIN_RTT_DIV)			*/
-#define HSPP_N_RTT_SAMPLE	8		/* Number of RTTs in CSS to determine whether the exit from SS was premature	*/
-#define HSPP_CSS_GROWTH_DIV	4		/* For less aggressive growth, cwnd increase is divided by 4 in CSS		*/
-#define HSPP_CSS_ROUNDS		5		/* Maximum number of rounds for CSS phase					*/
-#define HSPP_DEACTIVE		0
-#define HSPP_IN_SS		1		/* SS phase is active								*/
-#define HSPP_IN_CSS		2		/* CSS phase is active								*/
-#define HSPP_RTT_THRESH(x)	clamp(x, HSPP_MIN_RTT_THRESH, HSPP_MAX_RTT_THRESH)
-
 static int fast_convergence __read_mostly = 1;
 static int beta __read_mostly = 717;	/* = 717/1024 (BICTCP_BETA_SCALE) */
 static int initial_ssthresh __read_mostly;
@@ -94,14 +82,6 @@ MODULE_PARM_DESC(hystart_low_window, "lower bound cwnd for hybrid slow start");
 module_param(hystart_ack_delta_us, int, 0644);
 MODULE_PARM_DESC(hystart_ack_delta_us, "spacing between ack's indicating train (usecs)");
 
-static int hystartpp = 1;
-module_param(hystartpp, int, 0644);
-MODULE_PARM_DESC(hystartpp, "turn on/off hystart++ algorithm");
-// The following three lines are for monitoring purpose and will not be included in the final implementation.
-static int hystartpp_source_port = 5201;
-module_param(hystartpp_source_port, int, 0644);
-MODULE_PARM_DESC(hystartpp_source_port, "Source port used for TCP data transfer");
-
 /* BIC TCP Parameters */
 struct bictcp {
 	u32	cnt;		/* increase cwnd by 1 after ACKs */
@@ -122,23 +102,6 @@ struct bictcp {
 	u32	end_seq;	/* end_seq of the round */
 	u32	last_ack;	/* last time when the ACK spacing is close */
 	u32	curr_rtt;	/* the minimum rtt of current round */
-
-/* While some variables from HyStart could be reused,
- * we define separate variables for HyStart++ (HSPP) to enhance clarity.
- */
-	u8	hspp_flag;
-	u8	hspp_rttsample_counter;
-	u32	hspp_last_round_minrtt;
-	u32	hspp_current_round_minrtt;
-	u8	hspp_round_counter;
-	u8	hspp_entered_css_at_round;
-	u32	hspp_css_baseline_minrtt;
-	u32	hspp_end_seq;
-
-	// The following three variables are used for monitoring and will not be included in the final implementation.
-	u32	hspp_recent_rtt;
-	u32	hspp_acked;
-	u32     snd_isn; // Initial sequence number (is used to calc delivered)
 };
 
 static inline void bictcp_reset(struct bictcp *ca)
@@ -151,6 +114,7 @@ static inline u32 bictcp_clock_us(const struct sock *sk)
 {
 	return tcp_sk(sk)->tcp_mstamp;
 }
+
 
 static void logadditional(struct sock *sk, char *msg, int value)
 {
@@ -187,11 +151,10 @@ static void frameworklog(struct sock *sk)
          * }-}
          */
          // get clock time from KERN_INFO, tp->tcp_clock_cache or elsewhere?
-	printk(KERN_INFO"[CCRG] [FP] [0x%p] [FRAMEWORK] [%llu,%llu,%u,%u,%u,%u,%u,%u,%u,%u,%u,%lu,%u]\n", sk,
-	  tp->tcp_clock_cache, tp->bytes_acked, tp->mss_cache, tp->srtt_us, tp->rate_delivered, tp->rate_interval_us, tp->delivered, tp->lost_out, tp->total_retrans, (tp->app_limited ? 1 : 0), tp->snd_nxt, sk->sk_pacing_rate, tp->snd_una);
+	printk(KERN_INFO"[CCRG] [FP] [0x%p] [FRAMEWORK] [%llu,%llu,%u,%u,%u,%u,%u,%u,%u,%u,%u,%lu]\n", sk,
+	  tp->tcp_clock_cache, tp->bytes_acked, tp->mss_cache, tp->srtt_us, tp->rate_delivered, tp->rate_interval_us, tp->delivered, tp->lost_out, tp->total_retrans, (tp->app_limited ? 1 : 0), tp->snd_nxt, sk->sk_pacing_rate);
 	//}
 }
-
 
 static inline void bictcp_hystart_reset(struct sock *sk)
 {
@@ -204,42 +167,14 @@ static inline void bictcp_hystart_reset(struct sock *sk)
 	ca->sample_cnt = 0;
 }
 
-static inline void hystartpp_reset(struct sock *sk)
-{
-	struct tcp_sock *tp = tcp_sk(sk);
-	struct bictcp *ca = inet_csk_ca(sk);
-        
-        logadditional(sk, "HSPP OLD LAST ROUND MINRTT", ca->hspp_last_round_minrtt);
-        logadditional(sk, "HSPP NEW LAST ROUND MINRTT", ca->hspp_current_round_minrtt);
-        ca->hspp_last_round_minrtt = ca->hspp_current_round_minrtt;	/* {RFC9406_L186} */
-        ca->hspp_current_round_minrtt = ~0U;				/* {RFC9406_L187} */
-	ca->hspp_rttsample_counter = 0;					/* {RFC9406_L188} */
-        ca->hspp_end_seq = tp->snd_nxt;
-}
-
 __bpf_kfunc static void cubictcp_init(struct sock *sk)
 {
 	struct bictcp *ca = inet_csk_ca(sk);
 
 	bictcp_reset(ca);
 
-
-	ca->snd_isn = tcp_sk(sk)->snd_una;
-	if (hystartpp) {
-		ca->hspp_round_counter = 0;
-		ca->hspp_flag = HSPP_IN_SS;
-	        logstate(sk, "HSPP", "SS");
-		ca->hspp_last_round_minrtt = ~0U;	/* {RFC9406_L167} */
-		ca->hspp_current_round_minrtt = ~0U;	/* {RFC9406_L167} */
-		hystartpp_reset(sk);
-		//logprint(sk, "INIT", 1);
-		return;
-	}
-
-	if (hystart){
+	if (hystart)
 		bictcp_hystart_reset(sk);
-	        logstate(sk, "HS", "SS");
-	}
 
 	if (!hystart && initial_ssthresh)
 		tcp_sk(sk)->snd_ssthresh = initial_ssthresh;
@@ -427,45 +362,6 @@ tcp_friendliness:
 	ca->cnt = max(ca->cnt, 2U);
 }
 
-static void hystartpp_adjust_cwnd(struct sock *sk, u32 acked) {
-	struct tcp_sock *tp = tcp_sk(sk);
-	struct bictcp *ca = inet_csk_ca(sk);
-	u32 rtt_thresh;
-
-	/* Check if it is time to enter CSS. {RFC9406_L202} */
-	if ((ca->hspp_flag == HSPP_IN_SS) &&
-	    (ca->hspp_rttsample_counter >= HSPP_N_RTT_SAMPLE) &&
-	    (ca->hspp_current_round_minrtt != ~0U) &&
-	    (ca->hspp_last_round_minrtt != ~0U)) {
-		rtt_thresh = (ca->hspp_last_round_minrtt >> HSPP_CSS_MIN_RTT_DIV);
-		rtt_thresh = HSPP_RTT_THRESH(rtt_thresh);
-		if (ca->hspp_current_round_minrtt >= (ca->hspp_last_round_minrtt + rtt_thresh)) {
-			/* Enter CSS */
-
-                        logadditional(sk, "HSPP OLD ENTERED CSS AT ROUND", ca->hspp_entered_css_at_round);
-                        logadditional(sk, "HSPP NEW ENTERED CSS AT ROUND", ca->hspp_round_counter);
-                        logadditional(sk, "HSPP BASELINE OLD BASELINEMINRTT", ca->hspp_css_baseline_minrtt);
-                        logadditional(sk, "HSPP BASELINE NEW BASELINEMINRTT", ca->hspp_current_round_minrtt);
-			ca->hspp_css_baseline_minrtt = ca->hspp_current_round_minrtt;
-			ca->hspp_entered_css_at_round = ca->hspp_round_counter;
-			ca->hspp_flag = HSPP_IN_CSS;
-	                logstate(sk, "HSPP", "CSS");
-		}
-	}
-
-	if (ca->hspp_flag == HSPP_IN_SS) {
-		tcp_slow_start(tp, acked);
-	} else if (ca->hspp_flag == HSPP_IN_CSS) {
-		tcp_cong_avoid_ai(tp, HSPP_CSS_GROWTH_DIV, acked);	/* {RFC9406_L215} */
-	}
-
-	if (tcp_snd_cwnd(tp) >= tp->snd_ssthresh) {
-		/* Enter CA {RFC9406_L075} */
-		ca->hspp_flag = HSPP_DEACTIVE;
-	        logstate(sk, "HSPP", "CA");
-	}
-}
-
 __bpf_kfunc static void cubictcp_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -474,19 +370,14 @@ __bpf_kfunc static void cubictcp_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 	if (!tcp_is_cwnd_limited(sk))
 		return;
 
-	ca->hspp_acked = acked;
-	//logadditional(sk, "recalc ssthresh", ca->hspp_flag);
-	
 	if (tcp_in_slow_start(tp)) {
-		if (hystartpp && (ca->hspp_flag != HSPP_DEACTIVE)) {	/* {RFC9406_L075} */
-			hystartpp_adjust_cwnd(sk, acked);
-			return;
-		}
-
+	        logstate(sk, "HS", "SS");
 		acked = tcp_slow_start(tp, acked);
 		if (!acked)
 			return;
-	}
+	} else {
+	        logstate(sk, "HS", "CA");
+        }
 	bictcp_update(ca, tcp_snd_cwnd(tp), acked);
 	tcp_cong_avoid_ai(tp, ca->cnt, acked);
 }
@@ -495,9 +386,6 @@ __bpf_kfunc static u32 cubictcp_recalc_ssthresh(struct sock *sk)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
 	struct bictcp *ca = inet_csk_ca(sk);
-
-	ca->hspp_flag = HSPP_DEACTIVE;
-	logstate(sk, "HSPP", "CA");
 
 	ca->epoch_start = 0;	/* end of epoch */
 
@@ -513,18 +401,8 @@ __bpf_kfunc static u32 cubictcp_recalc_ssthresh(struct sock *sk)
 
 __bpf_kfunc static void cubictcp_state(struct sock *sk, u8 new_state)
 {
-	struct bictcp *ca = inet_csk_ca(sk);
-	logadditional(sk, "TCP State Change", new_state);
-
-	if (hystartpp && (ca->hspp_flag != HSPP_DEACTIVE) &&
-	    ((new_state == TCP_CA_CWR) || (new_state == TCP_CA_Recovery) || (new_state == TCP_CA_Loss))) {	/* {RFC9406_L245} */
-		//logprint(sk, "State Changed", 1);
-		ca->hspp_flag = HSPP_DEACTIVE;
-	        logstate(sk, "HSPP", "CA");
-		return;
-	}
-
 	if (new_state == TCP_CA_Loss) {
+	        logstate(sk, "HS", "CA");
 		bictcp_reset(inet_csk_ca(sk));
 		bictcp_hystart_reset(sk);
 	}
@@ -548,58 +426,6 @@ static u32 hystart_ack_delay(const struct sock *sk)
 		return 0;
 	return min_t(u64, USEC_PER_MSEC,
 		     div64_ul((u64)sk->sk_gso_max_size * 4 * USEC_PER_SEC, rate));
-}
-
-static void hystartpp_new_round(struct sock *sk)
-{
-	struct tcp_sock *tp = tcp_sk(sk);
-	struct bictcp *ca = inet_csk_ca(sk);
-
-	//logprint(sk, "New Round", 1);
-	//logadditional(sk, "New Round", 0);
-	hystartpp_reset(sk);
-	ca->hspp_round_counter++;
-	logadditional(sk, "HSPP ROUND COUNTER", ca->hspp_round_counter);
-	logadditional(sk, "HSPP ENTERED AT ROUND", ca->hspp_entered_css_at_round);
-	//logadditional(sk, "HSPP IN CSS", (ca->hspp_flag == HSPP_IN_CSS));
-	logadditional(sk, "HSPP ROUND COUNTER DIFF", ca->hspp_round_counter - ca->hspp_entered_css_at_round);
-	//logadditional(sk, "HSPP ROUND COUNTER DIFF EXCEEDS", (ca->hspp_round_counter - ca->hspp_entered_css_at_round) > HSPP_CSS_ROUNDS);
-	logadditional(sk, "HSPP CSS AND ROUND COUNTER DIFF EXCEEDS", (ca->hspp_flag == HSPP_IN_CSS) & ((ca->hspp_round_counter - ca->hspp_entered_css_at_round) > HSPP_CSS_ROUNDS));
-
-	if ((ca->hspp_flag == HSPP_IN_CSS) &&
-	    ((ca->hspp_round_counter - ca->hspp_entered_css_at_round) >= HSPP_CSS_ROUNDS)) {
-		tp->snd_ssthresh = tcp_snd_cwnd(tp);	/* Enter CA {RFC9406_L155} {RFC9406_L240} */
-		logadditional(sk, "HSPP CSS -> CA", 0);
-		ca->hspp_flag = HSPP_DEACTIVE;
-	        logstate(sk, "HSPP", "CA");
-	}
-}
-
-static void hystartpp_adjust_params(struct sock *sk, u32 rtt)
-{
-	struct tcp_sock *tp = tcp_sk(sk);
-	struct bictcp *ca = inet_csk_ca(sk);
-
-	ca->hspp_recent_rtt = rtt;
-
-	if (after(tp->snd_una, ca->hspp_end_seq))	/* Is it the start of a new round? */
-		hystartpp_new_round(sk);
-
-	if (rtt < ca->hspp_current_round_minrtt) {
-		ca->hspp_current_round_minrtt = rtt;	/* {RFC9406_L199} {RFC9406_L224}*/
-	}
-
-        if (ca->hspp_rttsample_counter < HSPP_N_RTT_SAMPLE) {
-		ca->hspp_rttsample_counter++;		/* {RFC9406_L200} {RFC9406_L225} */
-	} else {
-		if ((ca->hspp_flag == HSPP_IN_CSS) &&
-		    (ca->hspp_current_round_minrtt < ca->hspp_css_baseline_minrtt)) {
-			/* We were in CSS and the RTT is now less, we entered CSS erroneously. Enter SS. {RFC9406_L152} {RFC9406_L227} */
-			ca->hspp_css_baseline_minrtt = ~0U;	/* In this implementation, the HSPP_IN_CSS flag indicates that we are in CSS, so this assignment is unnecessary. */
-			ca->hspp_flag = HSPP_IN_SS;
-	                logstate(sk, "HSPP", "SS");
-		}
-	}
 }
 
 static void hystart_update(struct sock *sk, u32 delay)
@@ -634,7 +460,6 @@ static void hystart_update(struct sock *sk, u32 delay)
 
 			if ((s32)(now - ca->round_start) > threshold) {
 				ca->found = 1;
-				//logprint(sk, "HYSTART_ACK_TRAIN", 1);
 				pr_debug("hystart_ack_train (%u > %u) delay_min %u (+ ack_delay %u) cwnd %u\n",
 					 now - ca->round_start, threshold,
 					 ca->delay_min, hystart_ack_delay(sk), tcp_snd_cwnd(tp));
@@ -658,7 +483,6 @@ static void hystart_update(struct sock *sk, u32 delay)
 			if (ca->curr_rtt > ca->delay_min +
 			    HYSTART_DELAY_THRESH(ca->delay_min >> 3)) {
 				ca->found = 1;
-				//logprint(sk, "HYSTART_DELAY", 1);
 				NET_INC_STATS(sock_net(sk),
 					      LINUX_MIB_TCPHYSTARTDELAYDETECT);
 				NET_ADD_STATS(sock_net(sk),
@@ -669,14 +493,10 @@ static void hystart_update(struct sock *sk, u32 delay)
 		}
 	}
 }
-/* {-{
- * TODO template_remove
- * }-}
- */
+
 __bpf_kfunc static void cubictcp_acked(struct sock *sk, const struct ack_sample *sample)
 {
-	
-	frameworklog(sk);
+        frameworklog(sk);
 	const struct tcp_sock *tp = tcp_sk(sk);
 	struct bictcp *ca = inet_csk_ca(sk);
 	u32 delay;
@@ -697,13 +517,6 @@ __bpf_kfunc static void cubictcp_acked(struct sock *sk, const struct ack_sample 
 	if (ca->delay_min == 0 || ca->delay_min > delay)
 		ca->delay_min = delay;
 
-	if (hystartpp) {
-		if (tcp_in_slow_start(tp) && (ca->hspp_flag != HSPP_DEACTIVE)) { /* {RFC9406_L075} */
-			hystartpp_adjust_params(sk, delay);
-		}
-		return;
-	}
-
 	if (!ca->found && tcp_in_slow_start(tp) && hystart)
 		hystart_update(sk, delay);
 }
@@ -717,7 +530,7 @@ static struct tcp_congestion_ops cubictcp __read_mostly = {
 	.cwnd_event	= cubictcp_cwnd_event,
 	.pkts_acked     = cubictcp_acked,
 	.owner		= THIS_MODULE,
-	.name		= "cubic_hspp",
+	.name		= "cubic_hs_log",
 };
 
 BTF_KFUNCS_START(tcp_cubic_check_kfunc_ids)
@@ -771,8 +584,6 @@ static int __init cubictcp_register(void)
 	ret = register_btf_kfunc_id_set(BPF_PROG_TYPE_STRUCT_OPS, &tcp_cubic_kfunc_set);
 	if (ret < 0)
 		return ret;
-		
-        printk(KERN_INFO "HSPP registered");
 	return tcp_register_congestion_control(&cubictcp);
 }
 
@@ -780,17 +591,6 @@ static void __exit cubictcp_unregister(void)
 {
 	tcp_unregister_congestion_control(&cubictcp);
 }
-
-/* {-{
- * For log generation
- * }-}
- */
-static inline void print_header(struct sock *sk)
-{
-	struct bictcp *ca = inet_csk_ca(sk);
-	printk(KERN_INFO "[CCRG]: [flow pointer: 0x%p] ", ca);
-}
-
 
 module_init(cubictcp_register);
 module_exit(cubictcp_unregister);

@@ -1,0 +1,21 @@
+    1 0.000000000 130.215.126.234 → 130.215.248.198 TCP 67 45118 → 5201 [PSH, ACK] Seq=1 Ack=1 Win=502 Len=1[Packet size limited during capture]
+    2 0.009135468 130.215.248.198 → 130.215.126.234 TCP 67 5201 → 45118 [PSH, ACK] Seq=1 Ack=2 Win=508 Len=1[Packet size limited during capture]
+    3 0.009401779 130.215.126.234 → 130.215.248.198 TCP 70 45118 → 5201 [PSH, ACK] Seq=2 Ack=2 Win=502 Len=4[Packet size limited during capture]
+    4 0.009442838 130.215.126.234 → 130.215.248.198 TCP 391 45118 → 5201 [PSH, ACK] Seq=6 Ack=2 Win=502 Len=325[Packet size limited during capture]
+    5 0.015138590 130.215.248.198 → 130.215.126.234 TCP 66 5201 → 45118 [ACK] Seq=2 Ack=331 Win=506 Len=0[Packet size limited during capture]
+    6 0.015204570 130.215.248.198 → 130.215.126.234 TCP 70 5201 → 45118 [PSH, ACK] Seq=2 Ack=331 Win=506 Len=4[Packet size limited during capture]
+    7 0.015226229 130.215.248.198 → 130.215.126.234 TCP 391 5201 → 45118 [PSH, ACK] Seq=6 Ack=331 Win=506 Len=325[Packet size limited during capture]
+    8 0.015244504 130.215.248.198 → 130.215.126.234 TCP 67 5201 → 45118 [PSH, ACK] Seq=331 Ack=331 Win=506 Len=1[Packet size limited during capture]
+    9 0.015377145 130.215.126.234 → 130.215.248.198 TCP 66 45118 → 5201 [ACK] Seq=331 Ack=332 Win=501 Len=0[Packet size limited during capture]
+   10 0.015412568 130.215.126.234 → 130.215.248.198 TCP 66 45120 → 5201 [FIN, ACK] Seq=1 Ack=1 Win=502 Len=0[Packet size limited during capture]
+   11 0.015500215 130.215.126.234 → 130.215.248.198 TCP 67 45118 → 5201 [PSH, ACK] Seq=331 Ack=332 Win=501 Len=1[Packet size limited during capture]
+   12 0.015533932 130.215.126.234 → 130.215.248.198 TCP 66 45118 → 5201 [FIN, ACK] Seq=332 Ack=332 Win=501 Len=0[Packet size limited during capture]
+   13 0.021000363 130.215.248.198 → 130.215.126.234 TCP 66 5201 → 45120 [FIN, ACK] Seq=1 Ack=2 Win=3943 Len=0[Packet size limited during capture]
+   14 0.021100898 130.215.126.234 → 130.215.248.198 TCP 66 45120 → 5201 [ACK] Seq=2 Ack=2 Win=502 Len=0[Packet size limited during capture]
+   15 0.028504409 130.215.126.234 → 130.215.248.198 TCP 66 45118 → 5201 [FIN, ACK] Seq=332 Ack=332 Win=501 Len=0[Packet size limited during capture]
+   16 0.028770716 130.215.248.198 → 130.215.126.234 TCP 66 5201 → 45118 [FIN, ACK] Seq=332 Ack=333 Win=506 Len=0[Packet size limited during capture]
+   17 0.028848936 130.215.126.234 → 130.215.248.198 TCP 66 45118 → 5201 [ACK] Seq=333 Ack=333 Win=501 Len=0[Packet size limited during capture]
+   18 0.034084640 130.215.248.198 → 130.215.126.234 TCP 78 5201 → 45118 [ACK] Seq=333 Ack=333 Win=506 Len=0[Packet size limited during capture]
+   19 0.648534589 79.124.56.230 → 130.215.126.234 TCP 56 47200 → 2414 [SYN] Seq=0 Win=1024 Len=0
+   20 0.648574048 130.215.126.234 → 79.124.56.230 TCP 54 2414 → 47200 [RST, ACK] Seq=1 Ack=1 Win=0 Len=0
+   21 0.843366867 79.124.56.230 → 130.215.126.234 TCP 56 47200 → 2414 [RST] Seq=1 Win=1200 Len=0
