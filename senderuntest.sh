@@ -1,5 +1,5 @@
 #!/bin/bash
-numruns=10
+numruns=1
 locrun=0
 algorithm="cubic_hspp"
 runid="noid"
@@ -26,19 +26,19 @@ while getopts "ln:a:i:t:" arg; do
 		t)
 			#range=("${OPTARG//:/ }")
 			IFS=':'
-      read -ra range <<< "$OPTARG"
+      		read -ra range <<< "$OPTARG"
 			#echo "range invalid, try format [min(:max)](:step), in Kilobytes, "
 			# "=~ ^[0-9]+$" means check if its a number string
 			if [[ ${range[0]} =~ ^[0-9]+$ ]]; then
-        rangemin=${range[0]}
+        		rangemin=${range[0]}
 				rangemax=${range[0]}
-      fi
-      if [[ ${range[1]} =~ ^[0-9]+$ ]]; then
-      	rangemax=${range[1]}
-			  if [[ ${range[2]} =~ ^[0-9]+$ ]]; then
+      		fi
+      		if [[ ${range[1]} =~ ^[0-9]+$ ]]; then
+      			rangemax=${range[1]}
+				if [[ ${range[2]} =~ ^[0-9]+$ ]]; then
 				  rangestep=${range[2]}
-			  fi
-      fi
+			  	fi
+      		fi
 			echo "Run ID ${runid}"
 			;;
 	  *)
@@ -86,9 +86,10 @@ if [[ ! ((-e $"${lockfile}") && ($(cat ${lockfile}) == "${$}")) ]]; then
 fi
 
 date=$(date '+%Y-%m-%d-%s_%N')
-basepath=""
+basepath="~/Downloads/KernelLearnel/CCASatTestSuite/"
 logpath="${basepath}testlogs/${runid}/"
 runpath="${logpath}${date}"
+kernmodpath="${basepath}kernelmodules/"
 #Should be at least 5 even for testing
 # unless network is 100% your own
 sleeptime=5
@@ -105,18 +106,21 @@ mkdir -p "${runpath}"
 sudo sysctl -w net.ipv4.tcp_congestion_control="${algorithm}"
 sudo sysctl -w net.ipv4.tcp_no_metrics_save=1
 if [[ $(sudo sysctl net.ipv4.tcp_congestion_control) != "net.ipv4.tcp_congestion_control = ${algorithm}" ]]; then
-	echo "algorithm setting failed"
-	rm "${lockfile}"
-	exit
+	echo "algorithm setting failed, attempting to insmod"
+	sudo insmod "${kernmodpath}${algorithm}.ko"
+	if [[ $(sudo sysctl net.ipv4.tcp_congestion_control) != "net.ipv4.tcp_congestion_control = ${algorithm}" ]]; then
+		echo "insmod failed, algorithm setting failed"
+		rmlock
+	fi
 fi
-sudo sysctl net.ipv4.tcp_congestion_control >> "${logpath}/${date}.sysconf"
-sudo sysctl net.ipv4.tcp_window_scaling >> "${logpath}/${date}.sysconf"
-sudo sysctl net.ipv4.tcp_rmem >> "${logpath}/${date}.sysconf"
-sudo sysctl net.ipv4.tcp_wmem >> "${logpath}/${date}.sysconf"
-sudo sysctl net.core.rmem_max >> "${logpath}/${date}.sysconf"
-sudo sysctl net.core.wmem_max >> "${logpath}/${date}.sysconf"
-sudo sysctl net.core.rmem_default >> "${logpath}/${date}.sysconf"
-sudo sysctl net.core.wmem_default >> "${logpath}/${date}.sysconf"
+sudo sysctl net.ipv4.tcp_congestion_control >> "${logpath}${date}.sysconf"
+sudo sysctl net.ipv4.tcp_window_scaling >> "${logpath}${date}.sysconf"
+sudo sysctl net.ipv4.tcp_rmem >> "${logpath}${date}.sysconf"
+sudo sysctl net.ipv4.tcp_wmem >> "${logpath}${date}.sysconf"
+sudo sysctl net.core.rmem_max >> "${logpath}${date}.sysconf"
+sudo sysctl net.core.wmem_max >> "${logpath}${date}.sysconf"
+sudo sysctl net.core.rmem_default >> "${logpath}${date}.sysconf"
+sudo sysctl net.core.wmem_default >> "${logpath}${date}.sysconf"
 #gather pcaps, for future reference/debugging
 #run in -R so we dont have to worry about hole punching
 #no/less magic numbers/vars, pass them in
@@ -132,7 +136,7 @@ fi
 sudo pkill iperf3
 for (( r = rangemin; r <= (rangemax); r += rangestep )); do
   for (( i = 1; i <= numruns; i++ )); do
-  	thislogdir="${runpath}/${r}K/"
+  	thislogdir="${runpath}${r}K/"
   	thislog="${date}_${i}_${r}K"
 	mkdir -p "${thislogdir}"
   	sleep ${sleeptime}s
@@ -149,7 +153,8 @@ for (( r = rangemin; r <= (rangemax); r += rangestep )); do
   	tsharkpid=$!
   	echo "Waiting for client..."
   	if [[ $locrun == 0 ]]; then
-  		iperf3 -n "${r}K" -s -1 >> "${thislogdir}${thislog}.iperflog"
+  		# -n is client side only, even if running n reverse
+  		iperf3 -s -1 >> "${thislogdir}${thislog}.iperflog"
   	else
   		iperf3 -n "${r}K" -c ccasatpi.dyn.wpi.edu >> "${thislogdir}${thislog}.iperflog"
   	fi

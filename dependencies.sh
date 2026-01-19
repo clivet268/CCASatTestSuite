@@ -15,3 +15,5 @@ pip3 install matplotlib
 
 #if environment is externally managed
 sudo apt install python3-matplotlib
+sudo apt install openssh-server
+sudo apt install openssh-client

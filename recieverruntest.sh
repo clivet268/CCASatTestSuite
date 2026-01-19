@@ -1,13 +1,62 @@
 #!/bin/bash
 
-numruns=${1}
-if [[ "${numruns}" == "" ]]; then
-	numruns=10
-	#echo "Please run ${0} [the number of runs]"
-	#exit
-fi
+transfersize="400"
+senderhost="127.0.0.1"
+numruns=1
+locrun=0
+algorithm="cubic_hspp"
+runid="noid"
+rangemin=400
+rangemax=400
+rangestep=100
+
+while getopts "n:a:i:t:s:e:" arg; do
+	case $arg in
+		n) 	
+    		numruns=$OPTARG
+    		;;
+		a)
+			algorithm=$OPTARG
+			echo "Using the ${algorithm} algorithm"
+			;;
+		i)
+			runid=$OPTARG
+			echo "Run ID ${runid}"
+			;;
+		t)
+			#range=("${OPTARG//:/ }")
+			IFS=':'
+      		read -ra range <<< "$OPTARG"
+			#echo "range invalid, try format [min(:max)](:step), in Kilobytes, "
+			# "=~ ^[0-9]+$" means check if its a number string
+			if [[ ${range[0]} =~ ^[0-9]+$ ]]; then
+        		rangemin=${range[0]}
+				rangemax=${range[0]}
+      		fi
+      		if [[ ${range[1]} =~ ^[0-9]+$ ]]; then
+      			rangemax=${range[1]}
+			  	if [[ ${range[2]} =~ ^[0-9]+$ ]]; then
+				  rangestep=${range[2]}
+			  	fi
+      		fi
+			echo "Run ID ${runid}"
+			;;
+		s)
+			senderhost=$OPTARG
+			#ping?
+			;;	
+		e)
+			IFS='@'
+      		read -ra extractstring <<< "$OPTARG"
+			extractuser=${extractstring[0]}
+			extractip=${extractstring[1]}
+			;;
+	  *)
+	    echo "One or more flags not understood"
+	esac
+done
 
 for ((i=1; i<=${numruns}; i++)); do
-	iperf3 -c 127.0.0.1
+	iperf3 -n "${transfersize}K" -c ${senderhost}
 	sleep 14
 done

@@ -2,7 +2,7 @@
 #  Makefile
 #
 
-SRC = modified_tcp_cubic
+SRC = cubic_hspp
 obj-m := $(SRC).o
 KDIR := /lib/modules/$(shell uname -r)/build
 PWD := $(shell pwd)

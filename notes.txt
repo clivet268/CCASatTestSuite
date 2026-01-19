@@ -1,0 +1,6 @@
+
+Can you have N+1 valid samples before:
+after(tp->snd_una, ca->hspp_end_seq)
+If so: effects? Rapid switching with RTT oscillation?
+y
+
