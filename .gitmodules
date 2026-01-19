@@ -1,3 +1,4 @@
 [submodule "test_framework"]
 	path = test_framework
 	url = https://github.com/maryam-ataei/test_framework
+	branch = version2
