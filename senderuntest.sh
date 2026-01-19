@@ -86,7 +86,7 @@ if [[ ! ((-e $"${lockfile}") && ($(cat ${lockfile}) == "${$}")) ]]; then
 fi
 
 date=$(date '+%Y-%m-%d-%s_%N')
-basepath="~/Downloads/KernelLearnel/CCASatTestSuite/"
+basepath="${HOME}/Downloads/KernelLearnel/CCASatTestSuite/"
 logpath="${basepath}testlogs/${runid}/"
 runpath="${logpath}${date}"
 kernmodpath="${basepath}kernelmodules/"
