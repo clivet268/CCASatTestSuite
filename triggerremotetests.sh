@@ -1,5 +1,3 @@
-
-
 #!/bin/bash
 numruns=1
 locrun=0
@@ -12,7 +10,9 @@ recieverip="127.0.0.1"
 senderuser=""
 extractip="127.0.0.1"
 senderuser=""
-ccasattestsuitepath="/home/clivet268/Downloads/KernelLearnel/CCASatTestSuite/"
+basepath="${HOME}/CCASatTestSuite/"
+
+#set -o pipefail
 
 while getopts "ln:a:i:t:s:r:e:" arg; do
 	case $arg in
@@ -63,9 +63,19 @@ while getopts "ln:a:i:t:s:r:e:" arg; do
 done
 
 
+teststop() {
+	echo
+	echo "Stopping tests..."
+	pkill iperf3 2> /dev/null
+	kill "${recieverpid}" 2> /dev/null
+	kill "${senderpid}" 2> /dev/null
+	exit
+}
+
+trap teststop SIGINT
 
 if [[ "$rangemin" == "$rangemax" ]]; then
-  echo "Running ${numruns} test(s)..."
+  echo "Triggering ${numruns} test(s)..."
 else
   echo "Doing $(( ((rangemax + rangestep) - rangemin) / rangestep)) sets of ${numruns} test(s), transfer sizes ranging from ${rangemin}K to ${rangemax}K in steps of ${rangestep}K"
 fi
@@ -77,12 +87,11 @@ sudo pkill iperf3
 
 #sender must precede receiver during setup
 sssh="${senderuser}@${senderip}"
-ssh -tt "${sssh}" cd ${ccasattestsuitepath}; ${ccasattestsuitepath}senderuntest.sh -n ${numruns} -t rangestring &
+ssh -tt "${sssh}" cd ${basepath}; ${basepath}senderuntest.sh -n ${numruns} -t ${rangestring} &
 senderpid=$!
 sleep 7s
-
 rssh="${recieveruser}@${recieverip}"
-ssh -tt "${rssh}" cd ${ccasattestsuitepath}; ${ccasattestsuitepath}recieverruntest.sh -t ${r} -s ${senderip} -n ${numruns} &
+ssh -tt "${rssh}" cd ${basepath}; ${basepath}recieverruntest.sh -n ${numruns} -t ${r} -s ${senderip}  &
 recieverpid=$!
 
 

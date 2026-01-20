@@ -9,19 +9,27 @@ runid="noid"
 rangemin=400
 rangemax=400
 rangestep=100
+namestring="reciever"
+
+echowname() {
+	echo "[${namestring}]    ${1}"
+}
+
+#set -o pipefail
 
 while getopts "n:a:i:t:s:e:" arg; do
 	case $arg in
 		n) 	
     		numruns=$OPTARG
+    		echo "${OPTARG}"
     		;;
 		a)
 			algorithm=$OPTARG
-			echo "Using the ${algorithm} algorithm"
+			echowname "Using the ${algorithm} algorithm"
 			;;
 		i)
 			runid=$OPTARG
-			echo "Run ID ${runid}"
+			echowname "Run ID ${runid}"
 			;;
 		t)
 			#range=("${OPTARG//:/ }")
@@ -39,7 +47,7 @@ while getopts "n:a:i:t:s:e:" arg; do
 				  rangestep=${range[2]}
 			  	fi
       		fi
-			echo "Run ID ${runid}"
+			echowname "Run ID ${runid}"
 			;;
 		s)
 			senderhost=$OPTARG
@@ -51,12 +59,13 @@ while getopts "n:a:i:t:s:e:" arg; do
 			extractuser=${extractstring[0]}
 			extractip=${extractstring[1]}
 			;;
-	  *)
-	    echo "One or more flags not understood"
+		*)
+	    	echowname "One or more flags not understood"
 	esac
 done
 
+echowname "receiving ${numruns} time(s)..."
 for ((i=1; i<=${numruns}; i++)); do
-	iperf3 -n "${transfersize}K" -c ${senderhost}
+	iperf3 -4 -n "${transfersize}K" -c ${senderhost}
 	sleep 14
 done
