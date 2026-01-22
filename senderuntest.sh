@@ -9,6 +9,7 @@ rangemin=400
 rangemax=400
 rangestep=100
 namestring="sender"
+bindaddr="0.0.0.0"
 
 echowname() {
 	echo "[${namestring}]    ${1}"
@@ -16,10 +17,13 @@ echowname() {
 
 #set -o pipefail
 
-while getopts "ln:a:i:t:" arg; do
+while getopts "ln:a:i:t:B:" arg; do
 	case $arg in
 		n) 	
     		numruns=$OPTARG
+    		;;
+		B) 	
+    		bindaddr=$OPTARG
     		;;
     	l) 
     		echowname "Running in local mode"
@@ -166,9 +170,9 @@ for (( r = rangemin; r <= (rangemax); r += rangestep )); do
   	echowname "Waiting for reciever..."
   	if [[ $locrun == 0 ]]; then
   		# -n is client side only, even if running n reverse
-  		iperf3 -s -1 --one-off >> "${thislogdir}${thislog}.iperflog"
+  		iperf3 -B "${bindaddr}" -s -1 --one-off >> "${thislogdir}${thislog}.iperflog"
   	else
-  		iperf3 -n "${r}K" -c ccasatpi.dyn.wpi.edu >> "${thislogdir}${thislog}.iperflog"
+  		iperf3 -B "${bindaddr}" -n "${r}K" -c ccasatpi.dyn.wpi.edu >> "${thislogdir}${thislog}.iperflog"
   	fi
   	echowname "Complete"
   	sleep 0.1s

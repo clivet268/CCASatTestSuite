@@ -6,11 +6,14 @@ runid="noid"
 rangestring=400
 senderip="127.0.0.1"
 senderuser=""
+senderbind=""
 recieverip="127.0.0.1"
-senderuser=""
+recieveruser=""
+recieverbind=""
 extractip="127.0.0.1"
-senderuser=""
-basepath="${HOME}/CCASatTestSuite/"
+extractuser=""
+#gets home of the triggering machine, not the desired ones
+#basepath="${HOME}/CCASatTestSuite/"
 
 #set -o pipefail
 
@@ -18,6 +21,12 @@ while getopts "ln:a:i:t:s:r:e:" arg; do
 	case $arg in
 		n) 	
     		numruns=$OPTARG
+    		;;
+		x) 	
+    		senderbind=$OPTARG
+    		;;
+		y) 	
+    		recieverbind=$OPTARG
     		;;
     	l) 
     		echo "Running in local mode"

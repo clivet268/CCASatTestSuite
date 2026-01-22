@@ -10,6 +10,7 @@ rangemin=400
 rangemax=400
 rangestep=100
 namestring="reciever"
+bindaddr="0.0.0.0"
 
 echowname() {
 	echo "[${namestring}]    ${1}"
@@ -17,11 +18,14 @@ echowname() {
 
 #set -o pipefail
 
-while getopts "n:a:i:t:s:e:" arg; do
+while getopts "n:a:i:t:s:e:B:" arg; do
 	case $arg in
 		n) 	
     		numruns=$OPTARG
     		echo "${OPTARG}"
+    		;;
+		B) 	
+    		bindaddr=$OPTARG
     		;;
 		a)
 			algorithm=$OPTARG
@@ -64,8 +68,10 @@ while getopts "n:a:i:t:s:e:" arg; do
 	esac
 done
 
+#need sudo?
+#sudo echowname "running as : ${USER}"
 echowname "receiving ${numruns} time(s)..."
 for ((i=1; i<=${numruns}; i++)); do
-	iperf3 -4 -n "${transfersize}K" -c ${senderhost}
+	iperf3 -B "${bindaddr}" -n "${transfersize}K" -c ${senderhost}
 	sleep 14
 done
