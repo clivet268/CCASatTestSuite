@@ -76,7 +76,8 @@ rmlock() {
 trap rmlock SIGINT
 
 #uuid=$(uuidgen)
-sudo echo "${USER}"
+echowname "Sudoing"
+sudo echo "running as : ${USER}"
 #https://unix.stackexchange.com/questions/278904/linux-file-hierarchy-whats-the-best-location-to-store-lockfiless
 lockfile="/var/lock/testsuite.lock"
 while [[ -e $"${lockfile}" ]]; do
