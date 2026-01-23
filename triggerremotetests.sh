@@ -112,7 +112,7 @@ sudo pkill iperf3
 if [[ ${terminalmode} == "desktop" ]]; then
 	sssh="${senderuser}@${senderip}"
 	rssh="${recieveruser}@${recieverip}"
-	gnome-terminal -vvvv --disable-factory -- sh -c "ssh -tt ${sssh} "\''cd ${HOME}/CCASatTestSuite/; ${HOME}/CCASatTestSuite/senderuntest.sh'\'" -n ${numruns} -t ${rangestring} ${senderbind}; sleep 10" &
+	gnome-terminal -vvvv --disable-factory -- sh -c "ssh -tt ${sssh} "\''cd ${HOME}/CCASatTestSuite/; ${HOME}/CCASatTestSuite/senderuntest.sh'\'" -n ${numruns} ${senderbind}; sleep 10" &
 	senderpid=$!
 
 
@@ -126,11 +126,11 @@ else
 	sssh="${senderuser}@${senderip}"
 	rssh="${recieveruser}@${recieverip}"
 
-	echo "echo senderuntest.sh -n ${numruns} -t ${rangestring} ${senderbind}" | ssh clivet268@127.0.0.1 'cat > ${HOME}/CCASatTestSuite/senderrun'
+	echo "senderuntest.sh -n ${numruns} -t ${rangestring} ${senderbind}" | ssh clivet268@127.0.0.1 'cat > ${HOME}/CCASatTestSuite/senderrun'
 
+	sleep 7
 	
-	
-	echo "recieverruntest.sh -n ${numruns} -t ${r} -s ${senderip} ${recieverbind}" | ssh clivet268@127.0.0.1 'cat > ${HOME}/CCASatTestSuite/senderrun'
+	echo "recieverruntest.sh -n ${numruns} -t ${r} -s ${senderip} ${recieverbind}" | ssh clivet268@127.0.0.1 'cat > ${HOME}/CCASatTestSuite/reciever'
 	
 	cmdstr="sudo -S echo Sudoing; nohup "\''${HOME}'\'"/CCASatTestSuite/senderuntest.sh -n ${numruns} -t ${rangestring} ${senderbind}1>/dev/null 2>/dev/null &"
 	#ssh -tt ${sssh} ${cmdstr}
