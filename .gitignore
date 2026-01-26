@@ -15,6 +15,7 @@
 **/*.mod
 **/*.mod.c
 **/*.mod.o
+**/*.ko
 **/*.o
 **/modules.order
 **/Module.symvers
