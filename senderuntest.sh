@@ -10,6 +10,7 @@ rangemax=400
 rangestep=100
 namestring="sender"
 bindaddr="0.0.0.0"
+time=""
 
 echowname() {
 	echo "[${namestring}]    ${1}"
@@ -17,7 +18,7 @@ echowname() {
 
 #set -o pipefail
 
-while getopts "ln:a:i:t:B:" arg; do
+while getopts "ln:a:i:r:t:B:" arg; do
 	case $arg in
 		n) 	
     		numruns=$OPTARG
@@ -38,22 +39,29 @@ while getopts "ln:a:i:t:B:" arg; do
 			echowname "Run ID ${runid}"
 			;;
 		t)
-			#range=("${OPTARG//:/ }")
-			IFS=':'
-      		read -ra range <<< "$OPTARG"
-			#echo "range invalid, try format [min(:max)](:step), in Kilobytes, "
-			# "=~ ^[0-9]+$" means check if its a number string
-			if [[ ${range[0]} =~ ^[0-9]+$ ]]; then
-        		rangemin=${range[0]}
-				rangemax=${range[0]}
-      		fi
-      		if [[ ${range[1]} =~ ^[0-9]+$ ]]; then
-      			rangemax=${range[1]}
-				if [[ ${range[2]} =~ ^[0-9]+$ ]]; then
-				  rangestep=${range[2]}
-			  	fi
-      		fi
-			echowname "Run ID ${runid}"
+			time=$OPTARG
+			echowname "Running for ${time} seconds"
+			;;
+		r)
+			if [[ ${time} != "" ]]; then
+				echowname "-t time and -r range are exclusive, please omit -t if you want to use a size range"
+      		else
+				time="ranged"
+				IFS=':'
+      			read -ra range <<< "$OPTARG"
+				#echo "range invalid, try format [min(:max)](:step), in Kilobytes, "
+				# "=~ ^[0-9]+$" means check if its a number string
+				if [[ ${range[0]} =~ ^[0-9]+$ ]]; then
+          			rangemin=${range[0]}
+					rangemax=${range[0]}
+      			fi
+      			if [[ ${range[1]} =~ ^[0-9]+$ ]]; then
+      				rangemax=${range[1]}
+					if [[ ${range[2]} =~ ^[0-9]+$ ]]; then
+						rangestep=${range[2]}
+			  		fi
+      			fi
+			fi
 			;;
 	  *)
 	    echowname "One or more flags not understood"
@@ -151,41 +159,49 @@ else
   echowname "Doing $(( ((rangemax + rangestep) - rangemin) / rangestep)) sets of ${numruns} test(s), transfer sizes ranging from ${rangemin}K to ${rangemax}K in steps of ${rangestep}K"
 fi
 #sudo pkill iperf3
+
 for (( r = rangemin; r <= (rangemax); r += rangestep )); do
   for (( i = 1; i <= numruns; i++ )); do
-  	thislogdir="${runpath}/${date}_${r}K/"
-  	thislog="${date}_${i}_${r}K"
-	mkdir -p "${thislogdir}"
-  	sleep ${sleeptime}s
+    thislogdir="${runpath}/${date}_${r}K/"
+    thislog="${date}_${i}_${r}K"
+    mkdir -p "${thislogdir}"
+    sleep ${sleeptime}s
     echowname "${r}K transfer"
-  	#iperf3 -k 1 -c 41.226.22.119 -p 9239
-  	#iperf3 -k 1 -c ccasatpi.dyn.wpi.edu
-  	#/var/log/kernel.log instead of dmesg
-  	tail -f -n 0 /var/log/kern.log >> "${thislogdir}${thislog}.log" &
-  	tailpid=$!
-  	#sudo tshark -Y "tcp.port==5201" >> ${runpath}/${date}_${i}.tshark.log &
-  	# Packet count is written to stderr so to suppress packet counts in terminal
-  	#  do 2> /dev/null
-  	sudo tshark -s 60 >> "${thislogdir}${thislog}.tsharklog" 2> /dev/null &
-  	tsharkpid=$!
-  	echowname "Waiting for reciever..."
-  	if [[ $locrun == 0 ]]; then
-  		# -n is client side only, even if running n reverse
-  		iperf3 -B "${bindaddr}" -s -1 --one-off >> "${thislogdir}${thislog}.iperflog"
-  	else
-  		iperf3 -B "${bindaddr}" -n "${r}K" -c ccasatpi.dyn.wpi.edu >> "${thislogdir}${thislog}.iperflog"
-  	fi
-  	echowname "Complete"
-  	sleep 0.1s
-  	#chmod 666 "${runpath}/${date}_${i}.log"
-  	#chown -R "${USER}" "${logpath}"
-  	#sudo pkill iperf3
-  	kill ${tailpid}
-  	sleep 0.5s
-  	kill ${tsharkpid}
-  	echo "runconf:{" >> "${thislogdir}${thislog}.log"
-  	echo "size:${r}K" >> "${thislogdir}${thislog}.log"
-  	echo "}" >> "${thislogdir}${thislog}.log"
+    #/var/log/kernel.log instead of dmesg
+    tail -f -n 0 /var/log/kern.log >> "${thislogdir}${thislog}.log" &
+    tailpid=$!
+    #sudo tshark -Y "tcp.port==5201" >> ${runpath}/${date}_${i}.tshark.log &
+    # Packet count is written to stderr so to suppress packet counts in terminal
+    #  do 2> /dev/null
+    sudo tshark -s 60 >> "${thislogdir}${thislog}.tsharklog" 2> /dev/null &
+    tsharkpid=$!
+    echowname "Waiting for reciever..."
+    configstr=""
+    if [[ ${time} == "ranged" ]]; then
+    	configstr="-n ${r}K " 
+    else
+		if [[ ${time} != "" ]]; then
+			configstr="-t ${time} "
+		fi
+    fi
+    
+    if [[ $locrun == 0 ]]; then
+      # -n is client side only, even if running n reverse
+      iperf3 -B "${bindaddr}" "${configstr}" --one-off >> "${thislogdir}${thislog}.iperflog"
+    else
+      iperf3 -B "${bindaddr}" "${configstr}" --one-off -c ccasatpi.dyn.wpi.edu >> "${thislogdir}${thislog}.iperflog"
+    fi
+    echowname "Complete"
+    sleep 0.1s
+    #sudo pkill iperf3
+    kill ${tailpid}
+    sleep 0.5s
+    kill ${tsharkpid}
+    echo "runconf:{" >> "${thislogdir}${thislog}.log"
+    echo "size:${r}K" >> "${thislogdir}${thislog}.log"
+    echo "}" >> "${thislogdir}${thislog}.log"
   done
 done
 rm "${lockfile}"
+#ccasatpi.dyn.wpi.edu
+#iperf3 -k 1 -c 41.226.22.119 -p 9239

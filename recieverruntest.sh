@@ -1,6 +1,6 @@
 #!/bin/bash
 
-transfersize="400"
+transfersize=""
 senderhost="127.0.0.1"
 numruns=1
 locrun=0
@@ -11,6 +11,7 @@ rangemax=400
 rangestep=100
 namestring="reciever"
 bindaddr="0.0.0.0"
+time=""
 
 echowname() {
 	echo "[${namestring}]    ${1}"
@@ -18,7 +19,7 @@ echowname() {
 
 #set -o pipefail
 
-while getopts "n:a:i:t:s:e:B:" arg; do
+while getopts "n:a:i:r:s:e:t:B:" arg; do
 	case $arg in
 		n) 	
     		numruns=$OPTARG
@@ -36,22 +37,30 @@ while getopts "n:a:i:t:s:e:B:" arg; do
 			echowname "Run ID ${runid}"
 			;;
 		t)
-			#range=("${OPTARG//:/ }")
-			IFS=':'
-      		read -ra range <<< "$OPTARG"
-			#echo "range invalid, try format [min(:max)](:step), in Kilobytes, "
-			# "=~ ^[0-9]+$" means check if its a number string
-			if [[ ${range[0]} =~ ^[0-9]+$ ]]; then
-        		rangemin=${range[0]}
-				rangemax=${range[0]}
-      		fi
-      		if [[ ${range[1]} =~ ^[0-9]+$ ]]; then
-      			rangemax=${range[1]}
-			  	if [[ ${range[2]} =~ ^[0-9]+$ ]]; then
-				  rangestep=${range[2]}
-			  	fi
-      		fi
-			echowname "Run ID ${runid}"
+			time=$OPTARG
+			echowname "Running for ${time} seconds"
+			;;
+		r)
+			if [[ ${time} != "" ]]; then
+				echowname "-t time and -r range are exclusive, please omit -t if you want to use a size range"
+				transfersize=""
+      		else
+				#range=("${OPTARG//:/ }")
+				IFS=':'
+      			read -ra range <<< "$OPTARG"
+				#echo "range invalid, try format [min(:max)](:step), in Kilobytes, "
+				# "=~ ^[0-9]+$" means check if its a number string
+				if [[ ${range[0]} =~ ^[0-9]+$ ]]; then
+        			rangemin=${range[0]}
+					rangemax=${range[0]}
+      			fi
+      			if [[ ${range[1]} =~ ^[0-9]+$ ]]; then
+      				rangemax=${range[1]}
+					if [[ ${range[2]} =~ ^[0-9]+$ ]]; then
+						rangestep=${range[2]}
+			  		fi
+      			fi
+			fi
 			;;
 		s)
 			senderhost=$OPTARG
@@ -72,6 +81,16 @@ done
 #sudo echowname "running as : ${USER}"
 echowname "receiving ${numruns} time(s)..."
 for ((i=1; i<=${numruns}; i++)); do
-	iperf3 -B "${bindaddr}" -n "${transfersize}K" -c ${senderhost}
+	if [[ time != "" ]]; then
+		iperf3 -B "${bindaddr}" -t "${time}" -c "${senderhost}"
+	else
+		if [[ ${transfersize} = "" ]]; then
+			iperf3 -B "${bindaddr}" -c "${senderhost}"
+		else
+			for (( r = rangemin; r <= (rangemax); r += rangestep )); do
+				iperf3 -B "${bindaddr}" -n "${transfersize}K" -c "${senderhost}"
+			done
+		fi
+	fi
 	sleep 14
 done
