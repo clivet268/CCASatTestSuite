@@ -19,3 +19,5 @@
 **/*.o
 **/modules.order
 **/Module.symvers
+/reciever.out
+/sender.out
