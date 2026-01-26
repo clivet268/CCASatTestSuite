@@ -1,4 +1,23 @@
 #!/bin/bash
+
+scanfile="${HOME}/CCASatTestSuite/scanfile"
+params=""
+mode="senderuntest.sh"
+
+while getopts "rs:" arg; do
+	case $arg in
+		r) 	
+    		mode="recieverruntest.sh"
+    		;;
+		s) 	
+    		params=$OPTARG
+    		;;
+		*)
+	    	echowname "One or more flags not understood"
+	esac
+done
+
+
 sudo echo "$(whoami)"
 # Run ssh {username}@{server} "externalstart.sh" from your machine
 #if [[ ! -e /usr/sbin/senderuntest ]]; then
@@ -6,17 +25,17 @@ sudo echo "$(whoami)"
 #	exit
 #fi
 
-if [[ $1 == "" ]]; then
+if [[ ${mode} == "" ]]; then
 	exit
 fi
 
-until [ -f ${HOME}/CCASatTestSuite/$1 ]
-do
-	sudo echo "Scanning"
-	sleep 5
-done
-cmd="$(cat ${HOME}/CCASatTestSuite/$1)"
-rm "${HOME}/CCASatTestSuite/$1"
+#until [ -f ${scanfile} ]
+#do
+#	sudo echo "Scanning"
+#	sleep 5
+#done
+cmd="$(cat ${HOME}/CCASatTestSuite/${mode} ${params})"
+#rm scanfile
 eval "${HOME}/CCASatTestSuite/${cmd}"
 exit
 

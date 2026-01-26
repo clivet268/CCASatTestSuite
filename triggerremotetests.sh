@@ -126,20 +126,16 @@ else
 	sssh="${senderuser}@${senderip}"
 	rssh="${recieveruser}@${recieverip}"
 
-	echo "senderuntest.sh -n ${numruns} -t ${rangestring} ${senderbind}" | ssh clivet268@127.0.0.1 'cat > ${HOME}/CCASatTestSuite/senderrun'
+
+	#start remote sender
+	cmdstr="sudo bash -c "\'"setsid nohup /home/${senderuser}/CCASatTestSuite/externaltriggeredtestrun.sh -s "\""-n ${numruns} -t ${rangestring} ${senderbind}"\"" >> /home/${recieveruser}/CCASatTestSuite/sender.out 2>&1 < /dev/null & exit"\'
+	ssh ${sssh} -t \'"${cmdstr}"\'
 
 	sleep 7
 	
-	echo "recieverruntest.sh -n ${numruns} -t ${r} -s ${senderip} ${recieverbind}" | ssh clivet268@127.0.0.1 'cat > ${HOME}/CCASatTestSuite/reciever'
-	
-	cmdstr="sudo -S echo Sudoing; nohup "\''${HOME}'\'"/CCASatTestSuite/senderuntest.sh -n ${numruns} -t ${rangestring} ${senderbind}1>/dev/null 2>/dev/null &"
-	#ssh -tt ${sssh} ${cmdstr}
-	senderpid=$!
-	#sleep 5s
+	cmdstr="sudo bash -c "\'"setsid nohup /home/${senderuser}/CCASatTestSuite/externaltriggeredtestrun.sh -s "\""-n ${numruns} -t ${r} -s ${senderip} ${recieverbind}"\"" >> /home/${recieveruser}/CCASatTestSuite/sender.out 2>&1 < /dev/null & exit"\'
+	ssh ${sssh} -t \'"${cmdstr}"\'
 
-	cmdstr="sudo -S echo Sudoing; nohup "\''${HOME}'\'"/CCASatTestSuite/recieverruntest.sh -n ${numruns} -t ${r} -s ${senderip} ${recieverbind}1>/dev/null 2>/dev/null &"
-	#ssh -tt ${rssh} "bash -c '${cmdstr}'"
-	recieverpid=$!
 fi
 
 
