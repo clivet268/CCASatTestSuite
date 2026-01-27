@@ -164,9 +164,20 @@ for (( r = rangemin; r <= (rangemax); r += rangestep )); do
   for (( i = 1; i <= numruns; i++ )); do
     thislogdir="${runpath}/${date}_${r}K/"
     thislog="${date}_${i}_${r}K"
+    
+    configstr=""
+    if [[ ${time} == "ranged" ]]; then
+    	echowname "${r}K transfer"
+    	configstr="-n ${r}K " 
+    else
+		if [[ ${time} != "" ]]; then
+			configstr="-t ${time} "
+    		thislogdir="${runpath}/${date}_${time}s/"
+    		thislog="${date}_${i}_${time}s"
+		fi
+    fi
     mkdir -p "${thislogdir}"
     sleep ${sleeptime}s
-    echowname "${r}K transfer"
     #/var/log/kernel.log instead of dmesg
     tail -f -n 0 /var/log/kern.log >> "${thislogdir}${thislog}.log" &
     tailpid=$!
@@ -176,20 +187,13 @@ for (( r = rangemin; r <= (rangemax); r += rangestep )); do
     sudo tshark -s 60 >> "${thislogdir}${thislog}.tsharklog" 2> /dev/null &
     tsharkpid=$!
     echowname "Waiting for reciever..."
-    configstr=""
-    if [[ ${time} == "ranged" ]]; then
-    	configstr="-n ${r}K " 
-    else
-		if [[ ${time} != "" ]]; then
-			configstr="-t ${time} "
-		fi
-    fi
     
     if [[ $locrun == 0 ]]; then
       # -n is client side only, even if running n reverse
+      # --one-off should keep things cleaner
       iperf3 -B "${bindaddr}" "${configstr}" --one-off >> "${thislogdir}${thislog}.iperflog"
     else
-      iperf3 -B "${bindaddr}" "${configstr}" --one-off -c ccasatpi.dyn.wpi.edu >> "${thislogdir}${thislog}.iperflog"
+      iperf3 -B "${bindaddr}" "${configstr}" -c ccasatpi.dyn.wpi.edu >> "${thislogdir}${thislog}.iperflog"
     fi
     echowname "Complete"
     sleep 0.1s
