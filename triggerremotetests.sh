@@ -153,7 +153,7 @@ else
 	
 	
 	#start remote sender
-	cmdstr="sudo -E -s bash -c "\''cd /home/${SUDO_USER};'" setsid nohup /home/${senderuser}/CCASatTestSuite/senderuntest.sh -n ${numruns} ${finaltime}${finalrange}${senderbind}${finalextract} >> /home/${recieveruser}/CCASatTestSuite/sender.out 2>&1 < /dev/null & exit"\'
+	cmdstr="sudo -E -s bash -c "\'"cd /home/${senderuser}; setsid nohup /home/${senderuser}/CCASatTestSuite/senderuntest.sh -n ${numruns} ${finaltime}${finalrange}${senderbind}${finalextract} >> /home/${senderuser}/CCASatTestSuite/sender.out 2>&1 < /dev/null & exit"\'
 	
 	#echo ${cmdstr}
 	ssh -t ${sssh} "${cmdstr}"
@@ -163,7 +163,7 @@ else
 	
 	#start remote reciever
 	#cmdstr="sudo bash -c "\'"setsid nohup /home/${recieveruser}/CCASatTestSuite/recieverruntest.sh -n ${numruns} -t ${r} -s ${senderip} ${recieverbind} >> /home/${recieveruser}/CCASatTestSuite/reciever.out 2>&1 < /dev/null &  sleep 1000; exit"\'
-	cmdstr="sudo -E -s bash -c "\''cd /home/${SUDO_USER};'" setsid nohup /home/${recieveruser}/CCASatTestSuite/recieverruntest.sh -n ${numruns} ${finaltime}${finalrange} -s ${senderip}${recieverbind}${finalextract} >> /home/${recieveruser}/CCASatTestSuite/reciever.out 2>&1 < /dev/null & exit"\'
+	cmdstr="sudo -E -s bash -c "\'"cd /home/${recieveruser}; setsid nohup /home/${recieveruser}/CCASatTestSuite/recieverruntest.sh -n ${numruns} ${finaltime}${finalrange} -s ${senderip}${recieverbind}${finalextract} >> /home/${recieveruser}/CCASatTestSuite/reciever.out 2>&1 < /dev/null & exit"\'
 
 	#echo ${cmdstr}
 	ssh -t ${rssh} "${cmdstr}"
