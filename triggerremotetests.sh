@@ -156,7 +156,7 @@ else
 	cmdstr="sudo -E -s bash -c "\''cd /home/${SUDO_USER};'" setsid nohup /home/${senderuser}/CCASatTestSuite/senderuntest.sh -n ${numruns} ${finaltime}${finalrange}${senderbind}${finalextract} >> /home/${recieveruser}/CCASatTestSuite/sender.out 2>&1 < /dev/null & exit"\'
 	
 	#echo ${cmdstr}
-	ssh -t clivet268@127.0.0.1 "${cmdstr}"
+	ssh -t ${sssh} "${cmdstr}"
 	
 	#wait for sender to get ready
 	sleep 6s
@@ -166,7 +166,7 @@ else
 	cmdstr="sudo -E -s bash -c "\''cd /home/${SUDO_USER};'" setsid nohup /home/${recieveruser}/CCASatTestSuite/recieverruntest.sh -n ${numruns} ${finaltime}${finalrange} -s ${senderip}${recieverbind}${finalextract} >> /home/${recieveruser}/CCASatTestSuite/reciever.out 2>&1 < /dev/null & exit"\'
 
 	#echo ${cmdstr}
-	ssh -t clivet268@127.0.0.1 "${cmdstr}"
+	ssh -t ${rssh} "${cmdstr}"
 	
 	echo "This program will try to cleanup the remote after it ends,"
 	echo "do Ctrl-C to kill it now or Ctrl-Z and bg to kill it later"
