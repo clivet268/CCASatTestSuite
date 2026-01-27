@@ -14,12 +14,14 @@ extractip="127.0.0.1"
 extractuser=""
 terminalmode="terminal"
 basedir='${HOME}/CCASatTestSuite/'
+time=""
+finalextract=""
 #gets home of the triggering machine, not the desired ones
 #basepath="${HOME}/CCASatTestSuite/"
 
 #set -o pipefail
 
-while getopts "dln:a:i:t:s:r:e:x:y:" arg; do
+while getopts "dln:a:i:t:S:r:R:e:x:y:" arg; do
 	case $arg in
     	d) 
     		echo "Running with multiple terminals"
@@ -27,6 +29,9 @@ while getopts "dln:a:i:t:s:r:e:x:y:" arg; do
     		;;
 		n) 	
     		numruns=$OPTARG
+    		;;
+		t) 	
+    		time=$OPTARG
     		;;
 		x) 	
     		senderbind="-B ${OPTARG} "
@@ -49,10 +54,10 @@ while getopts "dln:a:i:t:s:r:e:x:y:" arg; do
 			runid=$OPTARG
 			echo "Run ID ${runid}"
 			;;
-		t)
+		r)
       		rangestring="$OPTARG"
 			;;
-		s)
+		S)
 			#12:15
 			IFS='@'
       		read -ra senderstring <<< "$OPTARG"
@@ -61,7 +66,7 @@ while getopts "dln:a:i:t:s:r:e:x:y:" arg; do
 			IFS=' '
 			#ping?
 			;;	
-		r)
+		R)
 			IFS='@'
       		read -ra recieverstring <<< "$OPTARG"
 			recieveruser=${recieverstring[0]}
@@ -75,18 +80,26 @@ while getopts "dln:a:i:t:s:r:e:x:y:" arg; do
 			extractuser=${extractstring[0]}
 			extractip=${extractstring[1]}
 			IFS=' '
+			finalextract=" -e ${extractuser}@${extractip}"
 			;;
 	  *)
 	    echo "One or more flags not understood"
 	esac
 done
 
-
+overrideStop=0
 teststop() {
+	if [[ ${overrideStop} -ge 5 ]]; then
+		echo "Force Exiting, no cleanup performed"
+  		exit
+  	fi
+  	overrideStop=$((overrideStop + 1))
 	echo
 	echo "Stopping tests..."
-	ssh -t ${sssh} 'pkill iperf3; pkill -f senderuntest.sh'
-	ssh -t ${rssh} 'pkill iperf3; pkill -f recieverruntest.sh'
+	echo "Auth to stop sender..."
+	ssh -t ${sssh} 'sudo pkill iperf3; sudo pkill -f senderuntest.sh'
+	echo "Auth to stop reciever..."
+	ssh -t ${rssh} 'sudo pkill iperf3; sudo pkill -f recieverruntest.sh'
 	exit
 }
 
@@ -107,26 +120,41 @@ fi
 #  on sender terminal, and entering pass for reciever (maybe)
 
 
+#this is outdated as most people will be using the cli only version
+#TODO update
 if [[ ${terminalmode} == "desktop" ]]; then
 	sssh="${senderuser}@${senderip}"
 	rssh="${recieveruser}@${recieverip}"
-	gnome-terminal -vvvv --disable-factory -- sh -c "ssh -tt ${sssh} "\''cd ${HOME}/CCASatTestSuite/; ${HOME}/CCASatTestSuite/senderuntest.sh'\'" -n ${numruns} -t ${rangestring} ${senderbind}; sleep 10" &
+	gnome-terminal -vvvv --disable-factory -- sh -c "ssh -tt ${sssh} "\''cd ${HOME}/CCASatTestSuite/; ${HOME}/CCASatTestSuite/senderuntest.sh'\'" -n ${numruns} -t ${rangestring} ${senderbind}${finalextract}; sleep 10" &
 	senderpid=$!
 
 
 	sleep 5s
 	read -p "[trigger] Enter to launch reciever terminal"$'\n' </dev/tty
 
-	gnome-terminal -vvvv --disable-factory -- sh -c "ssh -tt ${rssh} "\''cd ${HOME}/CCASatTestSuite/; ${HOME}/CCASatTestSuite/recieverruntest.sh'\'" -n ${numruns} -t ${r} -s ${senderip} ${recieverbind}; sleep 10" &
+	gnome-terminal -vvvv --disable-factory -- sh -c "ssh -tt ${rssh} "\''cd ${HOME}/CCASatTestSuite/; ${HOME}/CCASatTestSuite/recieverruntest.sh'\'" -n ${numruns} -t ${r} -s ${senderip} ${recieverbind}${finalextract}; sleep 10" &
 	recieverpid=$!
 else
 
 	sssh="${senderuser}@${senderip}"
 	rssh="${recieveruser}@${recieverip}"
 	
+	finalrange=""
+	finaltime=""
+	if [[ ${time} != "" ]]; then
+		finaltime="-t ${time} "
+	else
+		if [[ ${transfersize} = "" ]]; then
+			finaltime="-t 10 "
+		else
+			finalrange="-r ${rangestring} "
+		fi
+	fi
+	
+	
 	#start remote sender
-	cmdstr="sudo bash -c "\'"setsid nohup /home/${senderuser}/CCASatTestSuite/senderuntest.sh -n ${numruns} -t ${rangestring} ${senderbind} >> /home/${recieveruser}/CCASatTestSuite/sender.out 2>&1 < /dev/null & exit"\'
-
+	cmdstr="sudo -E -s bash -c "\''cd /home/${SUDO_USER};'" setsid nohup /home/${senderuser}/CCASatTestSuite/senderuntest.sh -n ${numruns} ${finaltime}${finalrange}${senderbind}${finalextract} >> /home/${recieveruser}/CCASatTestSuite/sender.out 2>&1 < /dev/null & exit"\'
+	
 	#echo ${cmdstr}
 	ssh -t clivet268@127.0.0.1 "${cmdstr}"
 	
@@ -134,9 +162,15 @@ else
 	sleep 6s
 	
 	#start remote reciever
-	cmdstr="sudo bash -c "\'"setsid nohup /home/${recieveruser}/CCASatTestSuite/recieverruntest.sh -n ${numruns} -t ${r} -s ${senderip} ${recieverbind} >> /home/${recieveruser}/CCASatTestSuite/reciever.out 2>&1 < /dev/null & exit"\'
-	
+	#cmdstr="sudo bash -c "\'"setsid nohup /home/${recieveruser}/CCASatTestSuite/recieverruntest.sh -n ${numruns} -t ${r} -s ${senderip} ${recieverbind} >> /home/${recieveruser}/CCASatTestSuite/reciever.out 2>&1 < /dev/null &  sleep 1000; exit"\'
+	cmdstr="sudo -E -s bash -c "\''cd /home/${SUDO_USER};'" setsid nohup /home/${recieveruser}/CCASatTestSuite/recieverruntest.sh -n ${numruns} ${finaltime}${finalrange} -s ${senderip}${recieverbind}${finalextract} >> /home/${recieveruser}/CCASatTestSuite/reciever.out 2>&1 < /dev/null & exit"\'
+
 	#echo ${cmdstr}
 	ssh -t clivet268@127.0.0.1 "${cmdstr}"
+	
+	echo "This program will try to cleanup the remote after it ends,"
+	echo "do Ctrl-C to kill it now or Ctrl-Z and bg to kill it later"
+	#one week timeout before you lose control, should we ever make it timeout???	
+	sleep 604800s
 fi
 

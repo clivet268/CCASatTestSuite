@@ -21,25 +21,29 @@ echowname() {
 
 while getopts "n:a:i:r:s:e:t:B:" arg; do
 	case $arg in
-		n) 	
-    		numruns=$OPTARG
-    		echo "${OPTARG}"
-    		;;
-		B) 	
-    		bindaddr=$OPTARG
-    		;;
 		a)
 			algorithm=$OPTARG
 			echowname "Using the ${algorithm} algorithm"
+			;;
+		B) 	
+    		bindaddr=$OPTARG
+    		;;
+		e)
+			IFS='@'
+      		read -ra extractstring <<< "$OPTARG"
+			extractuser=${extractstring[0]}
+			extractip=${extractstring[1]}
+			IFS=' '
+			finalextract=" -e ${extractuser}@${extractip}"
 			;;
 		i)
 			runid=$OPTARG
 			echowname "Run ID ${runid}"
 			;;
-		t)
-			time=$OPTARG
-			echowname "Running for ${time} seconds"
-			;;
+		n) 	
+    		numruns=$OPTARG
+    		echo "${OPTARG}"
+    		;;
 		r)
 			if [[ ${time} != "" ]]; then
 				echowname "-t time and -r range are exclusive, please omit -t if you want to use a size range"
@@ -65,32 +69,43 @@ while getopts "n:a:i:r:s:e:t:B:" arg; do
 		s)
 			senderhost=$OPTARG
 			#ping?
-			;;	
-		e)
-			IFS='@'
-      		read -ra extractstring <<< "$OPTARG"
-			extractuser=${extractstring[0]}
-			extractip=${extractstring[1]}
+			;;
+		t)
+			time=$OPTARG
+			echowname "Running for ${time} seconds"
 			;;
 		*)
 	    	echowname "One or more flags not understood"
 	esac
 done
 
+
+rmlock() {
+	echo
+	echowname "Cleaning up..."
+	pkill iperf3
+	exit
+}
+
+trap rmlock SIGINT
+trap rmlock SIGTERM
+
 #need sudo?
 #sudo echowname "running as : ${USER}"
 echowname "receiving ${numruns} time(s)..."
 for ((i=1; i<=${numruns}; i++)); do
 	if [[ time != "" ]]; then
-		iperf3 -B "${bindaddr}" -t "${time}" -c "${senderhost}"
+		iperf3 -R -B "${bindaddr}" -t "${time}" -c "${senderhost}"
 	else
 		if [[ ${transfersize} = "" ]]; then
-			iperf3 -B "${bindaddr}" -c "${senderhost}"
+			iperf3 -R -B "${bindaddr}" -t 10 -c "${senderhost}"
 		else
 			for (( r = rangemin; r <= (rangemax); r += rangestep )); do
-				iperf3 -B "${bindaddr}" -n "${transfersize}K" -c "${senderhost}"
+				iperf3 -R -B "${bindaddr}" -n "${transfersize}K" -c "${senderhost}"
 			done
 		fi
 	fi
-	sleep 14
+	sleep 14s
 done
+
+echowname "Run ID: ${runid}, complete"

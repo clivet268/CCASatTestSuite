@@ -11,6 +11,8 @@ rangestep=100
 namestring="sender"
 bindaddr="0.0.0.0"
 time=""
+extractuser=""
+extractip=""
 
 echowname() {
 	echo "[${namestring}]    ${1}"
@@ -18,30 +20,34 @@ echowname() {
 
 #set -o pipefail
 
-while getopts "ln:a:i:r:t:B:" arg; do
+while getopts "ln:a:e:i:r:t:B:" arg; do
 	case $arg in
-		n) 	
-    		numruns=$OPTARG
-    		;;
-		B) 	
-    		bindaddr=$OPTARG
-    		;;
-    	l) 
-    		echowname "Running in local mode"
-    		locrun=1
-    		;;
 		a)
 			algorithm=$OPTARG
 			echowname "Using the ${algorithm} algorithm"
+			;;
+		B) 	
+    		bindaddr=$OPTARG
+    		;;
+		e)
+			IFS='@'
+      		read -ra extractstring <<< "$OPTARG"
+			extractuser=${extractstring[0]}
+			extractip=${extractstring[1]}
+			IFS=' '
+			echo "Final: ${extractip}"
 			;;
 		i)
 			runid=$OPTARG
 			echowname "Run ID ${runid}"
 			;;
-		t)
-			time=$OPTARG
-			echowname "Running for ${time} seconds"
-			;;
+    	l) 
+    		echowname "Running in local mode"
+    		locrun=1
+    		;;
+		n) 	
+    		numruns=$OPTARG
+    		;;
 		r)
 			if [[ ${time} != "" ]]; then
 				echowname "-t time and -r range are exclusive, please omit -t if you want to use a size range"
@@ -62,6 +68,11 @@ while getopts "ln:a:i:r:t:B:" arg; do
 			  		fi
       			fi
 			fi
+			IFS=' '
+			;;
+		t)
+			time=$OPTARG
+			echowname "Running for ${time} seconds"
 			;;
 	  *)
 	    echowname "One or more flags not understood"
@@ -82,10 +93,12 @@ rmlock() {
 }
 
 trap rmlock SIGINT
+trap rmlock SIGTERM
 
 #uuid=$(uuidgen)
 echowname "Sudoing"
 sudo echo "running as : ${USER}"
+echowname "from user : ${SUDO_USER}"
 #https://unix.stackexchange.com/questions/278904/linux-file-hierarchy-whats-the-best-location-to-store-lockfiless
 lockfile="/var/lock/testsuite.lock"
 while [[ -e $"${lockfile}" ]]; do
@@ -174,6 +187,8 @@ for (( r = rangemin; r <= (rangemax); r += rangestep )); do
 			configstr="-t ${time} "
     		thislogdir="${runpath}/${date}_${time}s/"
     		thislog="${date}_${i}_${time}s"
+		else
+			configstr="-t 10 "
 		fi
     fi
     mkdir -p "${thislogdir}"
@@ -191,9 +206,11 @@ for (( r = rangemin; r <= (rangemax); r += rangestep )); do
     if [[ $locrun == 0 ]]; then
       # -n is client side only, even if running n reverse
       # --one-off should keep things cleaner
-      iperf3 -B "${bindaddr}" "${configstr}" --one-off >> "${thislogdir}${thislog}.iperflog"
+      # in this setup you should be sending, so client in -R
+      iperf3 -B "${bindaddr}" -s --one-off >> "${thislogdir}${thislog}.iperflog"
     else
-      iperf3 -B "${bindaddr}" "${configstr}" -c ccasatpi.dyn.wpi.edu >> "${thislogdir}${thislog}.iperflog"
+    	#in this setup you should be sending as the
+    	iperf3 -B "${bindaddr}" "${configstr}" -c ccasatpi.dyn.wpi.edu >> "${thislogdir}${thislog}.iperflog"
     fi
     echowname "Complete"
     sleep 0.1s
@@ -206,6 +223,13 @@ for (( r = rangemin; r <= (rangemax); r += rangestep )); do
     echo "}" >> "${thislogdir}${thislog}.log"
   done
 done
+
+echowname "Run ID: ${runid}, complete"
+if [[ extractip != "" ]]; then
+	IFS=' '
+	#echowname "Extracting to ${extractuser}@${extractip}"
+	#sudo -E -u ${SUDO_USER} scp -vvvvvvv -r testlogs/* ${extractuser}@${extractip}:/home/${extractuser}/CCASatTestSuite/testing/testlogs
+fi
 rm "${lockfile}"
 #ccasatpi.dyn.wpi.edu
 #iperf3 -k 1 -c 41.226.22.119 -p 9239
