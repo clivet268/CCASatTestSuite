@@ -1,7 +1,8 @@
 #!/bin/bash
 numruns=1
 locrun=0
-declare -a algorithms=("cubic_hspp")
+#declare -a algorithms=("cubic_hspp")
+algorithm="cubic_hspp"
 runid="noid"
 rangestring=400
 senderip="127.0.0.1"
@@ -23,6 +24,10 @@ finalextract=""
 
 while getopts "dln:a:i:t:S:r:R:e:x:y:" arg; do
 	case $arg in
+		a)
+      		algorithm=$OPTARG
+			echo "Using the algorithm: ${algorithm}"
+			;;
     	d) 
     		echo "Running with multiple terminals"
     		terminalmode="desktop"
@@ -43,13 +48,6 @@ while getopts "dln:a:i:t:S:r:R:e:x:y:" arg; do
     		echo "Running in local mode"
     		locrun=1
     		;;
-		a)
-			IFS=','
-      		read -ra algostring <<< "$OPTARG"
-			algorithms=algostring
-			echo "Using the algorithms: ${algorithm}"
-			IFS=' '
-			;;
 		i)
 			runid=$OPTARG
 			echo "Run ID ${runid}"
@@ -152,8 +150,9 @@ else
 	fi
 	
 	
+	#TODO make nicer the vars all bunched up are flags that might not be present
 	#start remote sender
-	cmdstr="sudo -E -s bash -c "\'"cd /home/${senderuser}; setsid nohup /home/${senderuser}/CCASatTestSuite/senderuntest.sh -n ${numruns} ${finaltime}${finalrange}${senderbind}${finalextract} >> /home/${senderuser}/CCASatTestSuite/sender.out 2>&1 < /dev/null & exit"\'
+	cmdstr="sudo -E -s bash -c "\'"cd /home/${senderuser}; setsid nohup /home/${senderuser}/CCASatTestSuite/senderuntest.sh -n ${numruns} -a ${algorithm} ${finaltime}${finalrange}${senderbind}${finalextract} >> /home/${senderuser}/CCASatTestSuite/sender.out 2>&1 < /dev/null & exit"\'
 	
 	#echo ${cmdstr}
 	ssh -t ${sssh} "${cmdstr}"
@@ -163,7 +162,7 @@ else
 	
 	#start remote reciever
 	#cmdstr="sudo bash -c "\'"setsid nohup /home/${recieveruser}/CCASatTestSuite/recieverruntest.sh -n ${numruns} -t ${r} -s ${senderip} ${recieverbind} >> /home/${recieveruser}/CCASatTestSuite/reciever.out 2>&1 < /dev/null &  sleep 1000; exit"\'
-	cmdstr="sudo -E -s bash -c "\'"cd /home/${recieveruser}; setsid nohup /home/${recieveruser}/CCASatTestSuite/recieverruntest.sh -n ${numruns} ${finaltime}${finalrange} -s ${senderip}${recieverbind}${finalextract} >> /home/${recieveruser}/CCASatTestSuite/reciever.out 2>&1 < /dev/null & exit"\'
+	cmdstr="sudo -E -s bash -c "\'"cd /home/${recieveruser}; setsid nohup /home/${recieveruser}/CCASatTestSuite/recieverruntest.sh -n ${numruns} -a ${algorithm} ${finaltime}${finalrange} -s ${senderip}${recieverbind}${finalextract} >> /home/${recieveruser}/CCASatTestSuite/reciever.out 2>&1 < /dev/null & exit"\'
 
 	#echo ${cmdstr}
 	ssh -t ${rssh} "${cmdstr}"
