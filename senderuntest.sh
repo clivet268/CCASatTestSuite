@@ -194,7 +194,7 @@ for (( r = rangemin; r <= (rangemax); r += rangestep )); do
     mkdir -p "${thislogdir}"
     sleep ${sleeptime}s
     #/var/log/kernel.log instead of dmesg
-    tail -f -n 0 /var/log/kern.log >> "${thislogdir}${thislog}.log" &
+    tail -f -n 1 /var/log/kern.log >> "${thislogdir}${thislog}.log" &
     tailpid=$!
     #sudo tshark -Y "tcp.port==5201" >> ${runpath}/${date}_${i}.tshark.log &
     # Packet count is written to stderr so to suppress packet counts in terminal
