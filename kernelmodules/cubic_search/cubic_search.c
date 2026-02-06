@@ -212,6 +212,34 @@ static inline u32 bictcp_clock_us(const struct sock *sk)
 }
 // SEARCH_end
 
+
+static void frameworklog(struct sock *sk)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+	//struct bictcp *ca = inet_csk_ca(sk);
+	/* {-{
+         * tcp_mstamp is essentially tcp_clock_cache/1000
+         * static inline u32 bictcp_clock_us(const struct sock *sk)
+         * {
+	 * return tcp_sk(sk)->tcp_mstamp;
+         * }
+         *
+         * https://stackoverflow.com/questions/8853771/tcp-ip-stack-in-linux-kernel
+         * srtt_us is "a smoothed rtt estimate"
+         *
+         * https://github.com/torvalds/linux/blob/master/net/ipv4/tcp_rate.c#L69
+         * TCP_SKB_CB(skb)->tx.is_app_limited	= tp->app_limited ? 1 : 0;
+         *
+         *
+         * }-}
+         */
+         // get clock time from KERN_INFO, tp->tcp_clock_cache or elsewhere?
+	printk(KERN_INFO"[CCRG] [FP] [0x%p] [FRAMEWORK] [%llu,%llu,%u,%u,%u,%u,%u,%u,%u,%u,%u,%lu]\n", sk,
+	  tp->tcp_clock_cache, tp->bytes_acked, tp->mss_cache, tp->srtt_us, tp->rate_delivered, tp->rate_interval_us, tp->delivered, tp->lost_out, tp->total_retrans, (tp->app_limited ? 1 : 0), tp->snd_nxt, sk->sk_pacing_rate);
+	//}
+}
+
+
 static inline void bictcp_hystart_reset(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -857,6 +885,7 @@ static void search_update(struct sock *sk, u32 rtt_us)
 
 static void bictcp_acked(struct sock *sk, const struct ack_sample *sample)
 {
+    frameworklog(sk);
 	const struct tcp_sock *tp = tcp_sk(sk);
 	struct bictcp *ca = inet_csk_ca(sk);
 	u32 delay;
