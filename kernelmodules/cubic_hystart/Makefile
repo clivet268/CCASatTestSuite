@@ -2,7 +2,7 @@
 #  Makefile
 #
 
-SRC = tcp_cubic_hslog
+SRC = cubic_hystart
 obj-m := $(SRC).o
 KDIR := /lib/modules/$(shell uname -r)/build
 PWD := $(shell pwd)
