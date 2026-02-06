@@ -152,7 +152,7 @@ else
 	
 	#TODO make nicer the vars all bunched up are flags that might not be present
 	#start remote sender
-	cmdstr="sudo -E -s bash -c "\'"cd /home/${senderuser}; setsid nohup /home/${senderuser}/CCASatTestSuite/senderuntest.sh -n ${numruns} -a ${algorithm} ${finaltime}${finalrange}${senderbind}${finalextract} >> /home/${senderuser}/CCASatTestSuite/sender.out 2>&1 < /dev/null & exit"\'
+	cmdstr="sudo -E -s bash -c "\'"cd /home/${senderuser}; setsid nohup /home/${senderuser}/CCASatTestSuite/senderuntest.sh -n ${numruns} -a ${algorithm} -i ${runid} ${finaltime}${finalrange}${senderbind}${finalextract} >> /home/${senderuser}/CCASatTestSuite/sender.out 2>&1 < /dev/null & exit"\'
 	
 	#echo ${cmdstr}
 	ssh -t ${sssh} "${cmdstr}"
@@ -167,7 +167,7 @@ else
 	
 	#start remote reciever
 	#cmdstr="sudo bash -c "\'"setsid nohup /home/${recieveruser}/CCASatTestSuite/recieverruntest.sh -n ${numruns} -t ${r} -s ${senderip} ${recieverbind} >> /home/${recieveruser}/CCASatTestSuite/reciever.out 2>&1 < /dev/null &  sleep 1000; exit"\'
-	cmdstr="sudo -E -s bash -c "\'"cd /home/${recieveruser}; setsid nohup /home/${recieveruser}/CCASatTestSuite/recieverruntest.sh -n ${numruns} -a ${algorithm} ${finaltime}${finalrange} -s ${senderip}${recieverbind}${finalextract} >> /home/${recieveruser}/CCASatTestSuite/reciever.out 2>&1 < /dev/null & exit"\'
+	cmdstr="sudo -E -s bash -c "\'"cd /home/${recieveruser}; setsid nohup /home/${recieveruser}/CCASatTestSuite/recieverruntest.sh -n ${numruns} -a ${algorithm} -i ${runid} ${finaltime}${finalrange} -s ${senderip}${recieverbind}${finalextract} >> /home/${recieveruser}/CCASatTestSuite/reciever.out 2>&1 < /dev/null & exit"\'
 
 	#echo ${cmdstr}
 	ssh -t ${rssh} "${cmdstr}"

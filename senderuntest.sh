@@ -41,10 +41,10 @@ while getopts "ln:a:e:i:r:t:B:" arg; do
 			runid=$OPTARG
 			echowname "Run ID ${runid}"
 			;;
-    	l) 
-    		echowname "Running in local mode"
-    		locrun=1
-    		;;
+    l)
+    	echowname "Running in local mode"
+    	locrun=1
+    	;;
 		n) 	
     		numruns=$OPTARG
     		;;
