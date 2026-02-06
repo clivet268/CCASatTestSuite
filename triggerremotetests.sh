@@ -158,6 +158,11 @@ else
 	ssh -t ${sssh} "${cmdstr}"
 	
 	#wait for sender to get ready
+	echo "The sender has been triggered, check the sender device\'s \"sender.out\" file to see its status"
+	echo "note that this could go over the test connection and taint test results, checking through a physical"
+	echo "screen or through a network that is not the test one is advised."
+	echo
+	echo "Waiting 6s for sender to get set up..."
 	sleep 6s
 	
 	#start remote reciever
