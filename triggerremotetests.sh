@@ -28,7 +28,7 @@ while getopts "dln:a:i:t:S:r:R:e:x:y:" arg; do
       		algorithm=$OPTARG
 			echo "Using the algorithm: ${algorithm}"
 			;;
-    	d) 
+    	d)
     		echo "Running with multiple terminals"
     		terminalmode="desktop"
     		;;
@@ -44,7 +44,7 @@ while getopts "dln:a:i:t:S:r:R:e:x:y:" arg; do
 		y) 	
     		recieverbind="-B ${OPTARG} "
     		;;
-    	l) 
+    	l)
     		echo "Running in local mode"
     		locrun=1
     		;;

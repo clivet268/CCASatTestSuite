@@ -21,6 +21,10 @@ number of runs to do per test^*^
 
 Seconds to run test for, will override any size settings
 
+-x [default 0.0.0.0]
+-y [default 0.0.0.0]
+
+The sender/receiver ip address to bind to to use as your sender ip, useful for when you have multiple network interfaces
 
 ${finalrange} -s ${senderip}${recieverbind}${finalextract} >> /home/${recieveruser}/CCASatTestSuite/reciever.out 2>&1 < /dev/null & exit"\'
 
