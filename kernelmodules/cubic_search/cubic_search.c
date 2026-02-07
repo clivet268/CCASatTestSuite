@@ -1,9 +1,10 @@
-/* SEARCH v3.0 with bin size u16:
+/* SEARCH v3.1 with bin size u16:
 * Use cumulative bytes in each bins instead of delta
 * Use u16 for the bin size
 * Use a union for the HyStart and SEARCH parts to use 
   the same memory space for different variables but only 
-  one set of the variables will be active at any given time.*/
+  one set of the variables will be active at any given time.
+* Deasl with app_limited and missed bins*/
 
 // SPDX-License-Identifier: GPL-2.0-only
 /*
@@ -32,6 +33,8 @@
  */
 
 #include <linux/mm.h>
+#include <linux/btf.h>
+#include <linux/btf_ids.h>
 #include <linux/module.h>
 #include <linux/math64.h>
 #include <net/tcp.h>
@@ -60,6 +63,7 @@ static int tcp_friendliness __read_mostly = 1;
 static int hystart_detect __read_mostly = HYSTART_ACK_TRAIN | HYSTART_DELAY;
 static int hystart_low_window __read_mostly = 16;
 static int hystart_ack_delta_us __read_mostly = 2000;
+
 static u32 cube_rtt_scale __read_mostly;
 static u32 beta_scale __read_mostly;
 static u64 cube_factor __read_mostly;
@@ -82,23 +86,22 @@ module_param(hystart_low_window, int, 0644);
 MODULE_PARM_DESC(hystart_low_window, "lower bound cwnd for hybrid slow start");
 module_param(hystart_ack_delta_us, int, 0644);
 MODULE_PARM_DESC(hystart_ack_delta_us, "spacing between ack's indicating train (usecs)");
-
-
 //////////////////////// SEARCH ////////////////////////
 /*	enable SEARCH with command:
- 		sudo sh -c "echo '1' > /sys/module/your_module_name/parameters/slow_start_mode"
+ 		sudo sh -c "echo '1' > /sys/module/tcp_cubic_search/parameters/slow_start_mode"
 	enable HyStart with command:
- 		sudo sh -c "echo '2' > /sys/module/cubic_with_search/parameters/slow_start_mode"  
+ 		sudo sh -c "echo '2' > /sys/module/tcp_cubic_search/parameters/slow_start_mode"  
 	disable both SEARCH and HyStart with command:
- 		sudo sh -c "echo '0' > /sys/module/cubic_with_search/parameters/slow_start_mode" 
+ 		sudo sh -c "echo '0' > /sys/module/tcp_cubic_search/parameters/slow_start_mode" 
 */
-// SEARCH_defs_begin
+
 #define MAX_US_INT 0xffff 
 #define SEARCH_BINS 10		/* Number of bins in a window */
 #define SEARCH_EXTRA_BINS 15 /* Number of additional bins to cover data after shiftting by RTT */
 #define SEARCH_TOTAL_BINS 25 	/* Total number of bins containing essential
 				   bins to cover RTT shift */
-// SEARCH_defs_end
+#define SEARCH_VERSION 31 /* Jut for logging */
+
 
 /* Define an enum for the slow start mode */
 enum {
@@ -107,21 +110,17 @@ enum {
     SS_HYSTART = 2 /* Enable the HyStart slow start algorithm */
 };
 
-// SEARCH_defs_begin
 enum unset_bin_duration {
-    UNSET_BIN_DURATION_FALSE,  // Reset bin duration
-    UNSET_BIN_DURATION_TRUE    // Do not reset bin duration
+    RESET_BIN_DURATION_TRUE,  // Reset bin duration
+    RESET_BIN_DURATION_FALSE    // Do not reset bin duration
 }; //
-// SEARCH_defs_end
 
 /* Set the default mode */
 static int slow_start_mode __read_mostly = SS_SEARCH;
-// SEARCH_begin
 static int search_window_duration_factor __read_mostly = 35;
 static int search_thresh __read_mostly = 35;
-static int cwnd_rollback __read_mostly = 0;
-static int search_alpha = 2;
-// SEARCH_end
+static int cwnd_rollback __read_mostly;
+static int search_alpha = MAX_US_INT;    // 2
 
 // Module parameters used by SEARCH
 module_param(slow_start_mode, int, 0644);
@@ -135,7 +134,8 @@ MODULE_PARM_DESC(cwnd_rollback, "Decrease the cwnd to its value in 2 initial RTT
 module_param(search_alpha, int, 0644);
 MODULE_PARM_DESC(search_alpha, "Alpha factor for determining missed bin limit in SEARCH. Defaults to 2, representing two RTTs.");
 
-// SEARCH_defs_begin
+
+
 /* BIC TCP Parameters */
 struct bictcp {
 	u32	cnt;		/* increase cwnd by 1 after ACKs */
@@ -174,45 +174,28 @@ struct bictcp {
 		}search;
 	};
 };
-// SEARCH_defs_end
 
-// SEARCH_begin
 static inline void bictcp_search_reset(struct bictcp *ca, enum unset_bin_duration flag)
 {
 	memset(ca->search.bin, 0, sizeof(ca->search.bin));
 	ca->search.curr_idx = -1;
 	ca->search.bin_end_us = 0;
 	ca->search.scale_factor = 0;
-	if (flag == UNSET_BIN_DURATION_FALSE)
+	if (flag == RESET_BIN_DURATION_TRUE)
 		ca->search.bin_duration_us = 0; 
 }
-// SEARCH_end
 
 static inline void bictcp_reset(struct bictcp *ca)
 {
-	ca->cnt = 0;
-	ca->last_max_cwnd = 0;
-	ca->last_cwnd = 0;
-	ca->last_time = 0;
-	ca->bic_origin_point = 0;
-	ca->bic_K = 0;
-	ca->delay_min = 0;
-	ca->epoch_start = 0;
-	ca->ack_cnt = 0;
-	ca->tcp_cwnd = 0;
+	memset(ca, 0, offsetof(struct bictcp, hystart.unused));
 	if (slow_start_mode == SS_HYSTART)
 		ca->hystart.found = 0;
-
 }
 
-// SEARCH_begin
 static inline u32 bictcp_clock_us(const struct sock *sk)
 {
 	return tcp_sk(sk)->tcp_mstamp;
 }
-// SEARCH_end
-
-
 static void frameworklog(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -223,22 +206,21 @@ static void frameworklog(struct sock *sk)
          * {
 	 * return tcp_sk(sk)->tcp_mstamp;
          * }
-         *
+         * 
          * https://stackoverflow.com/questions/8853771/tcp-ip-stack-in-linux-kernel
          * srtt_us is "a smoothed rtt estimate"
-         *
+         * 
          * https://github.com/torvalds/linux/blob/master/net/ipv4/tcp_rate.c#L69
          * TCP_SKB_CB(skb)->tx.is_app_limited	= tp->app_limited ? 1 : 0;
-         *
-         *
+         * 
+         * 
          * }-}
          */
          // get clock time from KERN_INFO, tp->tcp_clock_cache or elsewhere?
-	printk(KERN_INFO"[CCRG] [FP] [0x%p] [FRAMEWORK] [%llu,%llu,%u,%u,%u,%u,%u,%u,%u,%u,%u,%lu]\n", sk,
-	  tp->tcp_clock_cache, tp->bytes_acked, tp->mss_cache, tp->srtt_us, tp->rate_delivered, tp->rate_interval_us, tp->delivered, tp->lost_out, tp->total_retrans, (tp->app_limited ? 1 : 0), tp->snd_nxt, sk->sk_pacing_rate);
+	printk(KERN_INFO"[CCRG] [FP] [0x%p] [FRAMEWORK] [%llu,%llu,%u,%u,%u,%u,%u,%u,%u,%u,%u,%lu,%u]\n", sk,
+	  tp->tcp_clock_cache, tp->bytes_acked, tp->mss_cache, tp->srtt_us, tp->rate_delivered, tp->rate_interval_us, tp->delivered, tp->lost_out, tp->total_retrans, (tp->app_limited ? 1 : 0), tp->snd_nxt, sk->sk_pacing_rate, tp->snd_una);
 	//}
 }
-
 
 static inline void bictcp_hystart_reset(struct sock *sk)
 {
@@ -251,37 +233,32 @@ static inline void bictcp_hystart_reset(struct sock *sk)
 	ca->hystart.sample_cnt = 0;
 }
 
-
-static void bictcp_init(struct sock *sk)
+__bpf_kfunc static void cubictcp_init(struct sock *sk)
 {
 	struct bictcp *ca = inet_csk_ca(sk);
 
 	bictcp_reset(ca);
 
-	/* Reset based on the mode */
-	switch (slow_start_mode) {
-	case SS_SEARCH:
-		bictcp_search_reset(ca, UNSET_BIN_DURATION_FALSE);
-		break;
-	case SS_HYSTART:
+	if (slow_start_mode == SS_SEARCH)
+		bictcp_search_reset(ca, RESET_BIN_DURATION_TRUE);
+
+	if (slow_start_mode == SS_HYSTART)
 		bictcp_hystart_reset(sk);
-		break;
-	default:
-		break;
-	}
 
 	if (slow_start_mode != SS_HYSTART && initial_ssthresh)
 		tcp_sk(sk)->snd_ssthresh = initial_ssthresh;
 }
 
-static void bictcp_cwnd_event(struct sock *sk, enum tcp_ca_event event)
+__bpf_kfunc static void cubictcp_cwnd_event(struct sock *sk, enum tcp_ca_event event)
 {
+
 	struct bictcp *ca = inet_csk_ca(sk);
 
-	switch(event) {
-	case CA_EVENT_TX_START: {
-		s32 delta;
+	if (event == CA_EVENT_TX_START) {
+		struct bictcp *ca = inet_csk_ca(sk);
 		u32 now = tcp_jiffies32;
+		s32 delta;
+
 		delta = now - tcp_sk(sk)->lsndtime;
 
 		/* We were application limited (idle) for a while.
@@ -292,14 +269,13 @@ static void bictcp_cwnd_event(struct sock *sk, enum tcp_ca_event event)
 			if (after(ca->epoch_start, now))
 				ca->epoch_start = now;
 		}
-		break;
+		return;
 	}
-	case CA_EVENT_CWND_RESTART:
+
+	if (event == CA_EVENT_CWND_RESTART) {
 		if (slow_start_mode == SS_SEARCH)
-			bictcp_search_reset(ca, UNSET_BIN_DURATION_FALSE); 
-		break;
-	default:
-		break;
+			bictcp_search_reset(ca, RESET_BIN_DURATION_TRUE);
+		return;
 	}
 	return;
 }
@@ -343,9 +319,9 @@ static u32 cubic_root(u64 a)
 
 	/*
 	 * Newton-Raphson iteration
-	 *			 2
+	 *                         2
 	 * x    = ( 2 * x  +  a / x  ) / 3
-	 *  k+1	  k	 k
+	 *  k+1          k         k
 	 */
 	x = (2 * x + (u32)div64_u64(a, (u64)x * (u64)(x - 1)));
 	x = ((x * 341) >> 10);
@@ -421,16 +397,16 @@ static inline void bictcp_update(struct bictcp *ca, u32 cwnd, u32 acked)
 
 	/* c/rtt * (t-K)^3 */
 	delta = (cube_rtt_scale * offs * offs * offs) >> (10+3*BICTCP_HZ);
-	if (t < ca->bic_K)			    /* below origin*/
+	if (t < ca->bic_K)                            /* below origin*/
 		bic_target = ca->bic_origin_point - delta;
-	else					  /* above origin*/
+	else                                          /* above origin*/
 		bic_target = ca->bic_origin_point + delta;
 
 	/* cubic function - calc bictcp_cnt*/
 	if (bic_target > cwnd) {
 		ca->cnt = cwnd / (bic_target - cwnd);
 	} else {
-		ca->cnt = 100 * cwnd;	      /* very small increment*/
+		ca->cnt = 100 * cwnd;              /* very small increment*/
 	}
 
 	/*
@@ -465,7 +441,7 @@ tcp_friendliness:
 	ca->cnt = max(ca->cnt, 2U);
 }
 
-static void bictcp_cong_avoid(struct sock *sk, u32 ack, u32 acked)
+__bpf_kfunc static void cubictcp_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct bictcp *ca = inet_csk_ca(sk);
@@ -474,18 +450,15 @@ static void bictcp_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 		return;
 
 	if (tcp_in_slow_start(tp)) {
-
-		if (slow_start_mode == SS_HYSTART && after(ack, ca->hystart.end_seq))
-			bictcp_hystart_reset(sk);
 		acked = tcp_slow_start(tp, acked);
 		if (!acked)
 			return;
 	}
-	bictcp_update(ca, tp->snd_cwnd, acked);
+	bictcp_update(ca, tcp_snd_cwnd(tp), acked);
 	tcp_cong_avoid_ai(tp, ca->cnt, acked);
 }
 
-static u32 bictcp_recalc_ssthresh(struct sock *sk)
+__bpf_kfunc static u32 cubictcp_recalc_ssthresh(struct sock *sk)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
 	struct bictcp *ca = inet_csk_ca(sk);
@@ -493,32 +466,28 @@ static u32 bictcp_recalc_ssthresh(struct sock *sk)
 	ca->epoch_start = 0;	/* end of epoch */
 
 	/* Wmax and fast convergence */
-	if (tp->snd_cwnd < ca->last_max_cwnd && fast_convergence)
-		ca->last_max_cwnd = (tp->snd_cwnd * (BICTCP_BETA_SCALE + beta))
+	if (tcp_snd_cwnd(tp) < ca->last_max_cwnd && fast_convergence)
+		ca->last_max_cwnd = (tcp_snd_cwnd(tp) * (BICTCP_BETA_SCALE + beta))
 			/ (2 * BICTCP_BETA_SCALE);
 	else
-		ca->last_max_cwnd = tp->snd_cwnd;
+		ca->last_max_cwnd = tcp_snd_cwnd(tp);
 
-	return max((tp->snd_cwnd * beta) / BICTCP_BETA_SCALE, 2U);
+	return max((tcp_snd_cwnd(tp) * beta) / BICTCP_BETA_SCALE, 2U);
 }
 
-static void bictcp_state(struct sock *sk, u8 new_state)
+__bpf_kfunc static void cubictcp_state(struct sock *sk, u8 new_state)
 {
 	if (new_state == TCP_CA_Loss) {
 		bictcp_reset(inet_csk_ca(sk));
 
-		switch (slow_start_mode) {
-		case SS_SEARCH:
-			bictcp_search_reset(inet_csk_ca(sk), UNSET_BIN_DURATION_FALSE); 
-			break;
-		case SS_HYSTART:
+		if (slow_start_mode == SS_SEARCH)
+			bictcp_search_reset(inet_csk_ca(sk), RESET_BIN_DURATION_TRUE);
+
+		if (slow_start_mode == SS_HYSTART)
 			bictcp_hystart_reset(sk);
-			break;
-		default:
-			break;
-		}
 	}
 }
+
 
 /* Account for TSO/GRO delays.
  * Otherwise short RTT flows could get too small ssthresh, since during
@@ -529,7 +498,7 @@ static void bictcp_state(struct sock *sk, u8 new_state)
  * We apply another 100% factor because @rate is doubled at this point.
  * We cap the cushion to 1ms.
  */
-static u32 hystart_ack_delay(struct sock *sk)
+static u32 hystart_ack_delay(const struct sock *sk)
 {
 	unsigned long rate;
 
@@ -537,7 +506,7 @@ static u32 hystart_ack_delay(struct sock *sk)
 	if (!rate)
 		return 0;
 	return min_t(u64, USEC_PER_MSEC,
-		     div64_ul((u64)GSO_MAX_SIZE * 4 * USEC_PER_SEC, rate));
+		     div64_ul((u64)sk->sk_gso_max_size * 4 * USEC_PER_SEC, rate));
 }
 
 static void hystart_update(struct sock *sk, u32 delay)
@@ -545,6 +514,13 @@ static void hystart_update(struct sock *sk, u32 delay)
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct bictcp *ca = inet_csk_ca(sk);
 	u32 threshold;
+
+	if (after(tp->snd_una, ca->hystart.end_seq))
+		bictcp_hystart_reset(sk);
+
+	/* hystart triggers when cwnd is larger than some threshold */
+	if (tcp_snd_cwnd(tp) < hystart_low_window)
+		return;
 
 	if (hystart_detect & HYSTART_ACK_TRAIN) {
 		u32 now = bictcp_clock_us(sk);
@@ -567,13 +543,13 @@ static void hystart_update(struct sock *sk, u32 delay)
 				ca->hystart.found = 1;
 				pr_debug("hystart_ack_train (%u > %u) delay_min %u (+ ack_delay %u) cwnd %u\n",
 					 now - ca->hystart.round_start, threshold,
-					 ca->delay_min, hystart_ack_delay(sk), tp->snd_cwnd);
+					 ca->delay_min, hystart_ack_delay(sk), tcp_snd_cwnd(tp));
 				NET_INC_STATS(sock_net(sk),
 					      LINUX_MIB_TCPHYSTARTTRAINDETECT);
 				NET_ADD_STATS(sock_net(sk),
 					      LINUX_MIB_TCPHYSTARTTRAINCWND,
-					      tp->snd_cwnd);
-				tp->snd_ssthresh = tp->snd_cwnd;
+					      tcp_snd_cwnd(tp));
+				tp->snd_ssthresh = tcp_snd_cwnd(tp);
 			}
 		}
 	}
@@ -592,14 +568,16 @@ static void hystart_update(struct sock *sk, u32 delay)
 					      LINUX_MIB_TCPHYSTARTDELAYDETECT);
 				NET_ADD_STATS(sock_net(sk),
 					      LINUX_MIB_TCPHYSTARTDELAYCWND,
-					      tp->snd_cwnd);
-				tp->snd_ssthresh = tp->snd_cwnd;
+					      tcp_snd_cwnd(tp));
+				tp->snd_ssthresh = tcp_snd_cwnd(tp);			
 			}
 		}
 	}
 }
 
-// SEARCH_begin
+//////////////////////// SEARCH ////////////////////////
+
+
 /* Scale bin value to fit bin size, rescale previous bins.
  * Return amount scaled.
  */
@@ -661,7 +639,7 @@ static void search_init_bins(struct sock *sk, u32 now_us, u32 rtt_us)
  * Key steps:
  * - Calculate the number of bins that have passed since the last update.
  * - Reset SEARCH and reinitialize bins if the number of passed bins exceeds the
- *   threshold (`search_missed_bins_threshold`).
+ *   threshold.
  * - Copy the value of the last bin into the missed bins, ensuring continuity.
  * - Update the bin end time and current index to reflect the number of passed bins.
  * - Compute the value for the current bin by scaling the total acknowledged bytes
@@ -692,7 +670,8 @@ static void search_update_bins(struct sock *sk, u32 now_us, u32 rtt_us)
 	* existing bin duration.
 	*/
 	if (tp->app_limited) {
-		bictcp_search_reset(ca, UNSET_BIN_DURATION_TRUE); 
+		bictcp_search_reset(ca, RESET_BIN_DURATION_FALSE); 
+		search_init_bins(sk, now_us, rtt_us);
 		return;
 	}
 
@@ -714,12 +693,13 @@ static void search_update_bins(struct sock *sk, u32 now_us, u32 rtt_us)
 	 *
 	 */
 	initial_rtt = ca->search.bin_duration_us * SEARCH_BINS * 10 / search_window_duration_factor;
-	if (passed_bins > search_alpha * (initial_rtt / ca->search.bin_duration_us)) { 
+
+	if (passed_bins > search_alpha * (initial_rtt / ca->search.bin_duration_us)) {
 
 		if (passed_bins > SEARCH_BINS){
-			bictcp_search_reset(ca, UNSET_BIN_DURATION_FALSE);
+			bictcp_search_reset(ca, RESET_BIN_DURATION_TRUE);
 		} else {
-			bictcp_search_reset(ca, UNSET_BIN_DURATION_TRUE);
+			bictcp_search_reset(ca, RESET_BIN_DURATION_FALSE);
 		}
 	    	search_init_bins(sk, now_us, rtt_us);
 	    	return;
@@ -791,7 +771,7 @@ static void search_exit_slow_start(struct sock *sk, u32 now_us, u32 rtt_us)
 	 */
 	
 	/* If cwnd rollback is enabled */
- 	if (cwnd_rollback == 1) {
+ 	if (cwnd_rollback) {
 
  		initial_rtt = ca->search.bin_duration_us * SEARCH_BINS * 10 / search_window_duration_factor;
  		cong_idx = ca->search.curr_idx - ((2 * initial_rtt) / ca->search.bin_duration_us);
@@ -806,13 +786,13 @@ static void search_exit_slow_start(struct sock *sk, u32 now_us, u32 rtt_us)
 		* It doesn't drop below the initial cwnd (TCP_INIT_CWND) or is not 
 		* larger than the current cwnd (e.g., In the case of a TCP reset) 
   		*/	
-		if (overshoot_cwnd < tp->snd_cwnd)
-			tp->snd_cwnd = max(tp->snd_cwnd - overshoot_cwnd, (u32)TCP_INIT_CWND);
+		if (overshoot_cwnd < tcp_snd_cwnd(tp))
+			tp->snd_cwnd = max(tcp_snd_cwnd(tp) - overshoot_cwnd, (u32)TCP_INIT_CWND);
 		else
 			tp->snd_cwnd = TCP_INIT_CWND;
  	}
  	
- 	tp->snd_ssthresh = tp->snd_cwnd;
+ 	tp->snd_ssthresh = tcp_snd_cwnd(tp);
 
  	/*  If TCP re-enters slow start, the missed_bin threshold will be 
   	*   exceeded upon a bin update, and SEARCH will reset automatically. 
@@ -850,46 +830,54 @@ static void search_update(struct sock *sk, u32 rtt_us)
 	u32 fraction = 0;
 
 	/* by receiving the first ack packet, initialize bin duration and bin end time */
-	if (ca->search.curr_idx < 0) {  
+	if (ca->search.curr_idx < 0) {
 		search_init_bins(sk, now_us, rtt_us);
 		return;
 	}
 
-	/* check if it's reached the bin boundary */
-	if (now_us > ca->search.bin_end_us) {	
+	if (now_us < ca->search.bin_end_us)
+		return;
 
-		/* Update bins */
-		search_update_bins(sk, now_us, rtt_us);
+	/* reach or pass the bin boundary, update bins */
+	search_update_bins(sk, now_us, rtt_us);
 
-		/* check if there is enough bins after shift for computing previous window */
-		prev_idx = ca->search.curr_idx - (rtt_us/ca->search.bin_duration_us);
+	/* check if there is enough bins after shift for computing previous window */
+	prev_idx = ca->search.curr_idx - (rtt_us / ca->search.bin_duration_us);
 
-		if (prev_idx >= SEARCH_BINS && (ca->search.curr_idx - prev_idx) < SEARCH_EXTRA_BINS - 1) { 
-			
-			/* Calculate delivered bytes for the current and previous windows */
-			curr_delv_bytes = search_compute_delivered_window(sk, ca->search.curr_idx - SEARCH_BINS, ca->search.curr_idx, 0);
-			fraction = ((rtt_us % ca->search.bin_duration_us) * 100 / ca->search.bin_duration_us);
-			prev_delv_bytes = search_compute_delivered_window(sk, prev_idx - SEARCH_BINS, prev_idx, fraction);
+	if (prev_idx >= SEARCH_BINS && (ca->search.curr_idx - prev_idx) < SEARCH_EXTRA_BINS - 1) {
 
-			if (prev_delv_bytes > 0) {
-				norm_diff = ((2 * prev_delv_bytes) - curr_delv_bytes)*100 / (2 * prev_delv_bytes);
+		/* Calculate delivered bytes for the current and previous windows */
+		curr_delv_bytes = search_compute_delivered_window(sk,
+								  ca->search.curr_idx - SEARCH_BINS,
+								  ca->search.curr_idx, 
+								  0);
 
-				/* check for exit condition */
-				if ((2 * prev_delv_bytes) >= curr_delv_bytes && norm_diff >= search_thresh)
-					search_exit_slow_start(sk, now_us, rtt_us);
-			}
+		fraction = ((rtt_us % ca->search.bin_duration_us) * 100 / ca->search.bin_duration_us);
+
+		prev_delv_bytes = search_compute_delivered_window(sk,
+								  prev_idx - SEARCH_BINS,
+								  prev_idx,
+								  fraction);
+
+		if (prev_delv_bytes > 0) {
+			norm_diff = ((prev_delv_bytes << 1) - curr_delv_bytes) * 100 / (prev_delv_bytes << 1);
+
+			/* check for exit condition */
+			if ((2 * prev_delv_bytes) >= curr_delv_bytes && norm_diff >= search_thresh)
+				search_exit_slow_start(sk, now_us, rtt_us);
 		}
 	}
-}
-// SEARCH_end
 
-static void bictcp_acked(struct sock *sk, const struct ack_sample *sample)
+}
+
+//////////////////////////////////////////////////////////////
+__bpf_kfunc static void cubictcp_acked(struct sock *sk, const struct ack_sample *sample)
 {
-    frameworklog(sk);
 	const struct tcp_sock *tp = tcp_sk(sk);
 	struct bictcp *ca = inet_csk_ca(sk);
 	u32 delay;
-
+        frameworklog(sk);
+	//printk(KERN_INFO "[CCRG]: [flow pointer: 0x%p] Hellllllllllllllllloooooooooooooo ", ca);
 	/* Some calls are for duplicates without timetamps */
 	if (sample->rtt_us < 0)
 		return;
@@ -907,33 +895,45 @@ static void bictcp_acked(struct sock *sk, const struct ack_sample *sample)
 		ca->delay_min = delay;
 
 	//////////////////////// SEARCH ////////////////////////
-	if(tcp_in_slow_start(tp)) {
-		if(slow_start_mode == SS_SEARCH) {
+	if (tcp_in_slow_start(tp)) {
+		if (slow_start_mode == SS_SEARCH) {
 			/* implement search algorithm */
 			search_update(sk, delay);
-		}
-		else if (slow_start_mode == SS_HYSTART && !ca->hystart.found &&
-	    tp->snd_cwnd >= hystart_low_window)
+		} else if (slow_start_mode == SS_HYSTART && !ca->hystart.found)
 			hystart_update(sk, delay);
-
 	}
 }
 
-static struct tcp_congestion_ops cubicsearch __read_mostly = {
-	.init		= bictcp_init,
-	.ssthresh	= bictcp_recalc_ssthresh,
-	.cong_avoid	= bictcp_cong_avoid,
-	.set_state	= bictcp_state,
+static struct tcp_congestion_ops cubictcp __read_mostly = {
+	.init		= cubictcp_init,
+	.ssthresh	= cubictcp_recalc_ssthresh,
+	.cong_avoid	= cubictcp_cong_avoid,
+	.set_state	= cubictcp_state,
 	.undo_cwnd	= tcp_reno_undo_cwnd,
-	.cwnd_event	= bictcp_cwnd_event,
-	.pkts_acked	= bictcp_acked,
+	.cwnd_event	= cubictcp_cwnd_event,
+	.pkts_acked     = cubictcp_acked,
 	.owner		= THIS_MODULE,
 	.name		= "cubic_search",
 };
-//cubic_search_v3_1
 
-static int __init cubicsearch_register(void)
+BTF_KFUNCS_START(tcp_cubic_check_kfunc_ids)
+BTF_ID_FLAGS(func, cubictcp_init)
+BTF_ID_FLAGS(func, cubictcp_recalc_ssthresh)
+BTF_ID_FLAGS(func, cubictcp_cong_avoid)
+BTF_ID_FLAGS(func, cubictcp_state)
+BTF_ID_FLAGS(func, cubictcp_cwnd_event)
+BTF_ID_FLAGS(func, cubictcp_acked)
+BTF_KFUNCS_END(tcp_cubic_check_kfunc_ids)
+
+static const struct btf_kfunc_id_set tcp_cubic_kfunc_set = {
+	.owner = THIS_MODULE,
+	.set   = &tcp_cubic_check_kfunc_ids,
+};
+
+static int __init cubictcp_register(void)
 {
+	int ret;
+
 	BUILD_BUG_ON(sizeof(struct bictcp) > ICSK_CA_PRIV_SIZE);
 
 	/* Precompute a bunch of the scaling factors that are used per-packet
@@ -964,18 +964,22 @@ static int __init cubicsearch_register(void)
 	/* divide by bic_scale and by constant Srtt (100ms) */
 	do_div(cube_factor, bic_scale * 10);
 
-	return tcp_register_congestion_control(&cubicsearch);
+	ret = register_btf_kfunc_id_set(BPF_PROG_TYPE_STRUCT_OPS, &tcp_cubic_kfunc_set);
+	if (ret < 0)
+		return ret;
+	return tcp_register_congestion_control(&cubictcp);
 }
 
-static void __exit cubicsearch_unregister(void)
+static void __exit cubictcp_unregister(void)
 {
-	tcp_unregister_congestion_control(&cubicsearch);
+	tcp_unregister_congestion_control(&cubictcp);
 }
 
-module_init(cubicsearch_register);
-module_exit(cubicsearch_unregister);
+module_init(cubictcp_register);
+module_exit(cubictcp_unregister);
 
 MODULE_AUTHOR("Sangtae Ha, Stephen Hemminger");
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("TCP CUBIC w/ SEARCH");
-MODULE_VERSION("3.0");
+MODULE_DESCRIPTION("CUBIC TCP");
+MODULE_VERSION("2.3");
+

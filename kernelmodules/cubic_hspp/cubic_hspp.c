@@ -675,12 +675,10 @@ static void hystart_update(struct sock *sk, u32 delay)
  */
 __bpf_kfunc static void cubictcp_acked(struct sock *sk, const struct ack_sample *sample)
 {
-	
-	frameworklog(sk);
 	const struct tcp_sock *tp = tcp_sk(sk);
 	struct bictcp *ca = inet_csk_ca(sk);
 	u32 delay;
-
+        frameworklog(sk);
 	/* Some calls are for duplicates without timetamps */
 	if (sample->rtt_us < 0)
 		return;
