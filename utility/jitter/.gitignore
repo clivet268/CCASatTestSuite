@@ -1,0 +1,6 @@
+jitterOutput**/*
+**.csv
+
+**/*.zip
+
+__pycache__/
