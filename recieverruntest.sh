@@ -26,6 +26,7 @@ while getopts "n:a:i:r:s:e:t:B:" arg; do
 			echowname "Using the ${algorithm} algorithm"
 			;;
 		B) 	
+			echowname "binding to : ${OPTARG}"
     		bindaddr=$OPTARG
     		;;
 		e)

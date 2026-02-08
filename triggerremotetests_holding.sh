@@ -127,7 +127,7 @@ if [[ ${terminalmode} == "desktop" ]]; then
 	senderpid=$!
 
 
-	sleep 5s
+	sleep 6s
 	read -p "[trigger] Enter to launch reciever terminal"$'\n' </dev/tty
 
 	gnome-terminal -vvvv --disable-factory -- sh -c "ssh -tt ${rssh} "\''cd ${HOME}/CCASatTestSuite/; ${HOME}/CCASatTestSuite/recieverruntest.sh'\'" -n ${numruns} -t ${r} -s ${senderip} ${recieverbind}${finalextract}; sleep 10" &
@@ -149,10 +149,13 @@ else
 		fi
 	fi
 	
+	#since we are holding and have no tty you will need to find another way to auth
+	#rn we have global timestamps with a long timestamp timeout,
+	#not ideal, has some security issue in theory, but works
 	
 	#TODO make nicer the vars all bunched up are flags that might not be present
 	#start remote sender
-	cmdstr="sudo -E -s bash -c "\'"cd /home/${senderuser}; /home/${senderuser}/CCASatTestSuite/senderuntest.sh -n ${numruns} -a ${algorithm} -i ${runid} ${finaltime}${finalrange}${senderbind}${finalextract}"\'
+	cmdstr="sudo -E -s bash -c "\'"cd /home/${senderuser}; /home/${senderuser}/CCASatTestSuite/senderuntest.sh -n ${numruns} -a ${algorithm} -i ${runid} ${finaltime}${finalrange}${senderbind}${finalextract} >> /home/${senderuser}/CCASatTestSuite/sender.out 2>&1 < /dev/null"\'
 	
 	#echo ${cmdstr}
 	ssh ${sssh} "${cmdstr}" &
@@ -160,12 +163,12 @@ else
 	#wait for sender to get ready
 	echo "The sender has been triggered,"
 	sleep 6s
-	
+	echo "Triggering receiver"
 	#start remote reciever
 	#cmdstr="sudo bash -c "\'"setsid nohup /home/${recieveruser}/CCASatTestSuite/recieverruntest.sh -n ${numruns} -t ${r} -s ${senderip} ${recieverbind} >> /home/${recieveruser}/CCASatTestSuite/reciever.out 2>&1 < /dev/null &  sleep 1000; exit"\'
-	cmdstr="sudo -E -s bash -c "\'"cd /home/${recieveruser}; /home/${recieveruser}/CCASatTestSuite/recieverruntest.sh -n ${numruns} -a ${algorithm} -i ${runid} ${finaltime}${finalrange} -s ${senderip}${recieverbind}${finalextract}"\'
+	cmdstr="sudo -E -s bash -c "\'"cd /home/${recieveruser}; /home/${recieveruser}/CCASatTestSuite/recieverruntest.sh -n ${numruns} -a ${algorithm} -i ${runid} ${finaltime}${finalrange} -s ${senderip} ${recieverbind}${finalextract} >> /home/${recieveruser}/CCASatTestSuite/reciever.out 2>&1 < /dev/null"\'
 
-	#echo ${cmdstr}
+	echo ${cmdstr}
 	ssh ${rssh} "${cmdstr}"
 	
 	#echo "This program will try to cleanup the remote after it ends,"
