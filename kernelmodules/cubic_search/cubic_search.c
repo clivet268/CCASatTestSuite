@@ -196,6 +196,14 @@ static inline u32 bictcp_clock_us(const struct sock *sk)
 {
 	return tcp_sk(sk)->tcp_mstamp;
 }
+
+static void logstate(struct sock *sk, char *type, char *msg)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+	//struct bictcp *ca = inet_csk_ca(sk);
+        printk(KERN_INFO"[CCRG] [FP] [0x%p] [%s] [%llu,%s]\n", tp, type, tp->tcp_clock_cache, msg);
+}
+
 static void frameworklog(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -449,11 +457,14 @@ __bpf_kfunc static void cubictcp_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 	if (!tcp_is_cwnd_limited(sk))
 		return;
 
-	if (tcp_in_slow_start(tp)) {
+	if (tcp_in_slow_start(tp)) 
+	        logstate(sk, "SEARCH", "SS");{
 		acked = tcp_slow_start(tp, acked);
 		if (!acked)
 			return;
-	}
+	} else {
+	        logstate(sk, "SEARCH", "CA");
+        }
 	bictcp_update(ca, tcp_snd_cwnd(tp), acked);
 	tcp_cong_avoid_ai(tp, ca->cnt, acked);
 }
@@ -479,6 +490,7 @@ __bpf_kfunc static void cubictcp_state(struct sock *sk, u8 new_state)
 {
 	if (new_state == TCP_CA_Loss) {
 		bictcp_reset(inet_csk_ca(sk));
+	        logstate(sk, "SEARCH", "CA");
 
 		if (slow_start_mode == SS_SEARCH)
 			bictcp_search_reset(inet_csk_ca(sk), RESET_BIN_DURATION_TRUE);

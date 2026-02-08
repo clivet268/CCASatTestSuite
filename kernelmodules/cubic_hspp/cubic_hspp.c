@@ -441,7 +441,6 @@ static void hystartpp_adjust_cwnd(struct sock *sk, u32 acked) {
 		rtt_thresh = HSPP_RTT_THRESH(rtt_thresh);
 		if (ca->hspp_current_round_minrtt >= (ca->hspp_last_round_minrtt + rtt_thresh)) {
 			/* Enter CSS */
-
                         logadditional(sk, "HSPP OLD ENTERED CSS AT ROUND", ca->hspp_entered_css_at_round);
                         logadditional(sk, "HSPP NEW ENTERED CSS AT ROUND", ca->hspp_round_counter);
                         logadditional(sk, "HSPP BASELINE OLD BASELINEMINRTT", ca->hspp_css_baseline_minrtt);

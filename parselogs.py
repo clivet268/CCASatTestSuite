@@ -201,10 +201,9 @@ def processlog(logfilepath):
                             flows[pieces[2]] = []
                         flows[pieces[2]].append((pieces[3], pieces[4].split(',')))
                         logtypeset.add(f"{pieces[3]}")
-                        #print(f"{pieces[3]}")
-            for keyy in flows.keys():
-                print(f"{keyy}")
-            #print(f"{logtypeset}")
+                        print(f"{pieces[3]}")
+            print(f"{flows}")
+            print(f"{logtypeset}")
             #Create all different log types relevant to this run
             for flowpointer in flows.keys():
                 print(f"Flowpointer:{flowpointer}")

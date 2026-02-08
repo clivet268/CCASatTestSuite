@@ -371,12 +371,12 @@ __bpf_kfunc static void cubictcp_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 		return;
 
 	if (tcp_in_slow_start(tp)) {
-	        logstate(sk, "HS", "SS");
+	        logstate(sk, "CUB", "SS");
 		acked = tcp_slow_start(tp, acked);
 		if (!acked)
 			return;
 	} else {
-	        logstate(sk, "HS", "CA");
+	        logstate(sk, "CUB", "CA");
         }
 	bictcp_update(ca, tcp_snd_cwnd(tp), acked);
 	tcp_cong_avoid_ai(tp, ca->cnt, acked);
@@ -402,7 +402,7 @@ __bpf_kfunc static u32 cubictcp_recalc_ssthresh(struct sock *sk)
 __bpf_kfunc static void cubictcp_state(struct sock *sk, u8 new_state)
 {
 	if (new_state == TCP_CA_Loss) {
-	        logstate(sk, "HS", "CA");
+	        logstate(sk, "CUB", "CA");
 		bictcp_reset(inet_csk_ca(sk));
 		bictcp_hystart_reset(sk);
 	}
