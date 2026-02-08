@@ -530,7 +530,7 @@ static struct tcp_congestion_ops cubictcp __read_mostly = {
 	.cwnd_event	= cubictcp_cwnd_event,
 	.pkts_acked     = cubictcp_acked,
 	.owner		= THIS_MODULE,
-	.name		= "cubic_hs_log",
+	.name		= "cubic_wlog",
 };
 
 BTF_KFUNCS_START(tcp_cubic_check_kfunc_ids)
