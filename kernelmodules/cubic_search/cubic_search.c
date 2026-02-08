@@ -458,7 +458,7 @@ __bpf_kfunc static void cubictcp_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 		return;
 
 	if (tcp_in_slow_start(tp)) 
-	        logstate(sk, "SEARCH", "SS");{
+	        logstate(sk, "SEARCH", "SS");
 		acked = tcp_slow_start(tp, acked);
 		if (!acked)
 			return;
