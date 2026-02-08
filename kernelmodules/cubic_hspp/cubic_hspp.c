@@ -693,11 +693,17 @@ __bpf_kfunc static void cubictcp_acked(struct sock *sk, const struct ack_sample 
 	/* first time call or link delay decreases */
 	if (ca->delay_min == 0 || ca->delay_min > delay)
 		ca->delay_min = delay;
-
 	if (hystartpp) {
 		if (tcp_in_slow_start(tp) && (ca->hspp_flag != HSPP_DEACTIVE)) { /* {RFC9406_L075} */
 			hystartpp_adjust_params(sk, delay);
 		}
+		//TODO ensure in proper time, frameworks may differ in time where it logs this 
+                logadditional(sk, "HSPP SND_CWND", tp->snd_cwnd);
+                logadditional(sk, "HSPP SND_CWND_CNT", tp->snd_cwnd_cnt);
+        
+                logadditional(sk, "HSPP HSPP_END_SEQ", ca->hspp_end_seq);
+                logadditional(sk, "HSPP HSPP_RTTSAMPLE_COUNTER", ca->hspp_rttsample_counter);
+                logadditional(sk, "HSPP HSPP_CURRENT_ROUND_MINRTT", ca->hspp_current_round_minrtt);
 		return;
 	}
 
