@@ -17,12 +17,14 @@ terminalmode="terminal"
 basedir='${HOME}/CCASatTestSuite/'
 time=""
 finalextract=""
+senderlocbind=""
+recieverlocbind=""
 #gets home of the triggering machine, not the desired ones
 #basepath="${HOME}/CCASatTestSuite/"
 
 #set -o pipefail
 
-while getopts "dln:a:i:t:S:r:R:e:x:y:" arg; do
+while getopts "dln:a:i:t:S:r:R:e:x:y:X:Y:" arg; do
 	case $arg in
 		a)
       		algorithm=$OPTARG
@@ -30,6 +32,8 @@ while getopts "dln:a:i:t:S:r:R:e:x:y:" arg; do
 			;;
     	d)
     		echo "Running with multiple terminals"
+    		echo "WARNING, this function is not up to date, will not work"
+    		exit
     		terminalmode="desktop"
     		;;
 		n) 	
@@ -37,6 +41,12 @@ while getopts "dln:a:i:t:S:r:R:e:x:y:" arg; do
     		;;
 		t) 	
     		time=$OPTARG
+    		;;
+		X) 	
+    		senderlocbind="-b ${OPTARG} "
+    		;;
+		Y) 	
+    		recieverlocbind="-b ${OPTARG} "
     		;;
 		x) 	
     		senderbind="-B ${OPTARG} "
@@ -158,7 +168,7 @@ else
 	cmdstr="sudo -E -s bash -c "\'"cd /home/${senderuser}; /home/${senderuser}/CCASatTestSuite/senderuntest.sh -n ${numruns} -a ${algorithm} -i ${runid} ${finaltime}${finalrange}${senderbind}${finalextract} >> /home/${senderuser}/CCASatTestSuite/sender.out 2>&1 < /dev/null"\'
 	
 	#echo ${cmdstr}
-	ssh ${sssh} "${cmdstr}" &
+	ssh ${senderlocbind}${sssh} "${cmdstr}" &
 	
 	#wait for sender to get ready
 	echo "The sender has been triggered,"
@@ -169,7 +179,7 @@ else
 	cmdstr="sudo -E -s bash -c "\'"cd /home/${recieveruser}; /home/${recieveruser}/CCASatTestSuite/recieverruntest.sh -n ${numruns} -a ${algorithm} -i ${runid} ${finaltime}${finalrange} -s ${senderip} ${recieverbind}${finalextract} >> /home/${recieveruser}/CCASatTestSuite/reciever.out 2>&1 < /dev/null"\'
 
 	echo ${cmdstr}
-	ssh ${rssh} "${cmdstr}"
+	ssh ${rssh} ${recieverlocbind}"${cmdstr}"
 	
 	#echo "This program will try to cleanup the remote after it ends,"
 	#echo "do Ctrl-C to kill it now or Ctrl-Z and bg to kill it later"
