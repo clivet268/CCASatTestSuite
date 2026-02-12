@@ -58,13 +58,14 @@ trap estop SIGINT
 #use glomma/cs? as the client (reciever), our computers/cs? as 3rd party, mlcnet as server (sender)
 #single user mode, not relevant to this file
 
+sudo echo extracting..
 IFS=''
 dstdevice="${extractuser}@${extractip}:"
 echo ${dstdevice}
 if [[ ${clean} != "true" ]]; then
-	rsync --remove-source-files -abviuzP ${srcdir} ${dstdevice}${dstdir}
+	sudo rsync --remove-source-files -abviuzP ${srcdir} ${dstdevice}${dstdir}
 else
 	echo Transfering files and cleaning from source in 10 seconds...
 	sleep 10s
-	rsync --remove-source-files -abviuzP ${srcdir} ${dstdevice}${dstdir} && find ${srcdir} -type d -empty -delete
+	sudo rsync --remove-source-files -abviuzP ${srcdir} ${dstdevice}${dstdir} && find ${srcdir} -type d -empty -delete
 fi
