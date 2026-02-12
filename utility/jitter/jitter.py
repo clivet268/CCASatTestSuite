@@ -7,8 +7,32 @@ import parseCSV
 from parseCSV import numberType
 
 
+appLimitedIndex=2
 roundTripTimeIndex=1
 accumulatedTimeIndex=0
+minTime = 18
+
+def calcInterpacketTime(t:list[tuple[numberType,numberType]]) -> list[numberType]:
+    outlist = [numberType(0)]
+    for i in range(1,len(t)):
+        diff = t[i][accumulatedTimeIndex]-t[i-1][accumulatedTimeIndex]
+        outlist.append(diff)
+    return outlist
+def calcSentTime(t:list[tuple[numberType,numberType]]) -> list[numberType]:
+    outlist = []
+    for i in range(0,len(t)):
+        diff = t[i][accumulatedTimeIndex]-t[i][roundTripTimeIndex]
+        outlist.append(diff)
+    return outlist
+def calcSentInterpacketTime(t:list[tuple[numberType,numberType]]) -> list[numberType]:
+    sent_times = calcSentTime(t)
+    outlist = [numberType(0)]
+    for i in range(1, len(sent_times)):
+        diff = sent_times[i] - sent_times[i-1]
+        outlist.append(diff)
+    return outlist
+
+
 
 def avg(trace:list[tuple[numberType,numberType]]) -> tuple[numberType,numberType]:
     sum1 = 0
@@ -18,35 +42,79 @@ def avg(trace:list[tuple[numberType,numberType]]) -> tuple[numberType,numberType
         sum2 += i[1]
     return (numberType(sum1/len(trace)),numberType(sum2/len(trace)))
 
-def applyJitter(prev:tuple[numberType,numberType]|None, cur:tuple[numberType,numberType],span:numberType):
-    timeToAdd=numberType(((rand.random()*2)-1)*span)
-    #start
-    if(prev==None):
-        return (cur[accumulatedTimeIndex],cur[roundTripTimeIndex]+timeToAdd)
-    diff = (cur[accumulatedTimeIndex]+timeToAdd-prev[accumulatedTimeIndex])
-    orderingFix:list[numberType] = [0]*2
-    #clamp
-    if(diff<0):
-        timeBetweenPacketBuffer = 18 # i got 18 microseconds
-        orderingFix[accumulatedTimeIndex]=prev[accumulatedTimeIndex] + timeBetweenPacketBuffer
-        time = orderingFix[accumulatedTimeIndex] - cur[accumulatedTimeIndex]
-        orderingFix[roundTripTimeIndex]=cur[roundTripTimeIndex] + time # compute min 1gb/s and add here
-        # orderingFix[accumulatedTimeIndex]=orderingFix[roundTripTimeIndex]-cur[roundTripTimeIndex] 
-    # noIssue
-    else:
-        orderingFix[roundTripTimeIndex]=cur[roundTripTimeIndex]+timeToAdd
-        orderingFix[accumulatedTimeIndex]=cur[accumulatedTimeIndex]+timeToAdd
-    return (orderingFix[0],orderingFix[1])
 
-def jitter(trace:list[tuple[numberType,numberType]],amount:float,useAmountAsTime:bool=False):
-    outList:list[tuple[numberType,numberType]] = []
-    mean:tuple[numberType,numberType] = avg(trace)
+def applyJitter(prev:tuple[numberType,numberType,bool]|None, cur:tuple[numberType,numberType,bool],srcPrev:tuple[numberType,numberType,bool]|None,span:numberType)->tuple[numberType,numberType,bool]:
+    timeToAdd=numberType(((rand.random()*2)-1)*span)
+    if(cur[roundTripTimeIndex]+timeToAdd < 0):
+        timeToAdd = 0
+    if(cur[appLimitedIndex]): # preserve time sent
+        #start
+        if(prev==None):
+            return (cur[accumulatedTimeIndex],cur[roundTripTimeIndex]+timeToAdd,bool(cur[appLimitedIndex]))
+        
+        diff = (cur[accumulatedTimeIndex]+timeToAdd-prev[accumulatedTimeIndex])
+        output:list[numberType] = [0]*2
+        # clamp
+        if(diff<0):
+            timeBetweenPacketBuffer = minTime # i got 18 microseconds
+            output[accumulatedTimeIndex]=prev[accumulatedTimeIndex] + timeBetweenPacketBuffer
+            time = output[accumulatedTimeIndex]-cur[accumulatedTimeIndex]
+            output[roundTripTimeIndex]=cur[roundTripTimeIndex] + time # compute min 1gb/s and add here
+
+        # noIssue
+        else:
+            output[roundTripTimeIndex]=cur[roundTripTimeIndex]+timeToAdd
+            output[accumulatedTimeIndex]=cur[accumulatedTimeIndex]+timeToAdd
+    
+        return (output[0],output[1],bool(cur[appLimitedIndex]))
+    else:
+        output:list[numberType] = [0]*2
+        if(prev==None or srcPrev ==None):
+            return (cur[accumulatedTimeIndex],cur[roundTripTimeIndex]+timeToAdd,bool(cur[appLimitedIndex]))
+
+        srcPrevSendTime = srcPrev[accumulatedTimeIndex]-srcPrev[roundTripTimeIndex]
+        curSendTime = cur[accumulatedTimeIndex]-cur[roundTripTimeIndex]
+        prevSentTime = prev[accumulatedTimeIndex]-prev[roundTripTimeIndex]
+
+        if(srcPrev[accumulatedTimeIndex]<curSendTime): # if cur was sent after prev was received, keep that proterty
+
+            output[roundTripTimeIndex]=max(cur[roundTripTimeIndex]+timeToAdd,minTime)
+
+            output[accumulatedTimeIndex] = prev[accumulatedTimeIndex]+ (curSendTime-srcPrevSendTime) + output[roundTripTimeIndex]
+
+            assert((output[accumulatedTimeIndex]-output[roundTripTimeIndex])-(prevSentTime)>0)
+
+        else:   # else, keep being set after prev and keep acked after prev, -- cur sent before prev received
+
+            minRTT = (prev[accumulatedTimeIndex ] - ((prevSentTime) + (curSendTime-srcPrevSendTime))) + minTime # acked after prev
+            # minRTT =18
+
+
+            output[roundTripTimeIndex]=max(cur[roundTripTimeIndex]+timeToAdd,minRTT)
+
+            output[accumulatedTimeIndex] = (prevSentTime) + (curSendTime-srcPrevSendTime) +  output[roundTripTimeIndex]
+
+            try:
+                assert((output[accumulatedTimeIndex])>(prev[accumulatedTimeIndex])>0)
+            except:
+                print(output, prev, cur, srcPrev)
+            pass
+
+
+        return (output[0],output[1],bool(cur[appLimitedIndex]))
+
+
+
+def jitter(trace:list[tuple[numberType,numberType,bool]],amount:float,useAmountAsTime:bool=False):
+    outList:list[tuple[numberType,numberType,bool]] = []
+    mean:tuple[numberType,numberType] = avg([(x[:2]) for x in trace])
     span:numberType = numberType((mean[roundTripTimeIndex] if not useAmountAsTime else 1 )*amount)
     print(span)
-    outList.append( applyJitter(None,trace[0],span))
+    outList.append( applyJitter(None,trace[0],None,span))
     for i in range(1,len(trace)):
-        outList.append( applyJitter(outList[i-1],trace[i],span))
-    return outList
+        outList.append( applyJitter(outList[i-1],trace[i],trace[i-1],span))
+
+    return [(numberType(x[0]),numberType(x[1]),numberType(x[2])) for x in outList]
 
 
 def test():
@@ -116,12 +184,29 @@ def main():
     
     headers,data=parseCSV.parseTrace(args.fileName)
     # print(headers,data)
-    getRows = ["now_us","rtt_us"]
+    getRows = ["now_us","rtt_us","app_limited"]
     cleaned = parseCSV.getRelevant(getRows,headers,data)
+
+    formatCleaned = list(map(lambda x :  (x[0],x[1],bool(x[2])),cleaned))
     # print(cleaned)
-    jittered = jitter(list(map(lambda x :  (x[0],x[1]),cleaned)),args.jitterAmount,args.M)
+    jittered = jitter(formatCleaned,args.jitterAmount,args.M)
     origName=str(os.path.basename(args.fileName)).split('.')
     dirname = os.path.dirname(args.fileName)
+
+    # validrate order preserved
+    preserved = True
+    failIndex = -1
+    for i in range(1,len(jittered)):
+        if jittered[i][accumulatedTimeIndex] < jittered[i-1][accumulatedTimeIndex] + minTime:
+            failIndex = i
+            preserved = False
+            break
+    
+    if(not preserved):
+        print("Something went wrong and could not preserve packet order at " + str(failIndex))
+        # exit(0)
+
+
     if(dirname):
         dirname += os.sep
         dirname = "jitterOutput"+os.sep+dirname
