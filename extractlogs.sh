@@ -67,5 +67,5 @@ if [[ ${clean} != "true" ]]; then
 else
 	echo Transfering files and cleaning from source in 10 seconds...
 	sleep 10s
-	rsync --remove-source-files -abviuzP ${srcdir} ${dstdevice}${dstdir} && sudo rm -r ${srcdir}
+	rsync --remove-source-files -abviuzP ${srcdir} ${dstdevice}${dstdir} && sudo rm -r ${srcdir} && sudo find ${srcdir} -type d -empty -delete
 fi
