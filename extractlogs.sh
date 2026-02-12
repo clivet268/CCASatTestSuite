@@ -63,9 +63,9 @@ IFS=''
 dstdevice="${extractuser}@${extractip}:"
 echo ${dstdevice}
 if [[ ${clean} != "true" ]]; then
-	sudo rsync --remove-source-files -abviuzP ${srcdir} ${dstdevice}${dstdir}
+	rsync --remove-source-files -abviuzP ${srcdir} ${dstdevice}${dstdir}
 else
 	echo Transfering files and cleaning from source in 10 seconds...
 	sleep 10s
-	sudo rsync --remove-source-files -abviuzP ${srcdir} ${dstdevice}${dstdir} && find ${srcdir} -type d -empty -delete
+	rsync --remove-source-files -abviuzP ${srcdir} ${dstdevice}${dstdir} && sudo find ${srcdir} -type d -empty -delete
 fi
