@@ -371,10 +371,13 @@ __bpf_kfunc static void cubictcp_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 		return;
 
 	if (tcp_in_slow_start(tp)) {
+	        logstate(sk, "HS", "SS");
 		acked = tcp_slow_start(tp, acked);
 		if (!acked)
 			return;
-	}
+	} else {
+	        logstate(sk, "HS", "CA");
+        }
 	bictcp_update(ca, tcp_snd_cwnd(tp), acked);
 	tcp_cong_avoid_ai(tp, ca->cnt, acked);
 }
@@ -457,7 +460,6 @@ static void hystart_update(struct sock *sk, u32 delay)
 
 			if ((s32)(now - ca->round_start) > threshold) {
 				ca->found = 1;
-				logstate(sk, "HS", "CA");
 				pr_debug("hystart_ack_train (%u > %u) delay_min %u (+ ack_delay %u) cwnd %u\n",
 					 now - ca->round_start, threshold,
 					 ca->delay_min, hystart_ack_delay(sk), tcp_snd_cwnd(tp));
@@ -481,7 +483,6 @@ static void hystart_update(struct sock *sk, u32 delay)
 			if (ca->curr_rtt > ca->delay_min +
 			    HYSTART_DELAY_THRESH(ca->delay_min >> 3)) {
 				ca->found = 1;
-	                        logstate(sk, "HS", "CA");
 				NET_INC_STATS(sock_net(sk),
 					      LINUX_MIB_TCPHYSTARTDELAYDETECT);
 				NET_ADD_STATS(sock_net(sk),
@@ -516,10 +517,8 @@ __bpf_kfunc static void cubictcp_acked(struct sock *sk, const struct ack_sample 
 	if (ca->delay_min == 0 || ca->delay_min > delay)
 		ca->delay_min = delay;
 
-	if (!ca->found && tcp_in_slow_start(tp) && hystart){
-	        logstate(sk, "HS", "SS");
+	if (!ca->found && tcp_in_slow_start(tp) && hystart)
 		hystart_update(sk, delay);
-	}
 }
 
 static struct tcp_congestion_ops cubictcp __read_mostly = {
