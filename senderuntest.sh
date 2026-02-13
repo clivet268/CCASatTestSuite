@@ -18,6 +18,7 @@ echowname() {
 	echo "[${namestring}]    ${1}"
 }
 
+#TODO should pipefail?
 #set -o pipefail
 
 while getopts "ln:a:e:i:r:t:B:" arg; do
@@ -78,9 +79,6 @@ while getopts "ln:a:e:i:r:t:B:" arg; do
 	    echowname "One or more flags not understood"
 	esac
 done
-
-
-
 
 rmlock() {
 	echo
@@ -159,8 +157,7 @@ sudo sysctl net.core.rmem_max >> "${logpath}${date}.sysconf"
 sudo sysctl net.core.wmem_max >> "${logpath}${date}.sysconf"
 sudo sysctl net.core.rmem_default >> "${logpath}${date}.sysconf"
 sudo sysctl net.core.wmem_default >> "${logpath}${date}.sysconf"
-#gather pcaps, for future reference/debugging
-#run in -R so we dont have to worry about hole punching
+
 #no/less magic numbers/vars, pass them in
 #use ps for flags that include iperf, then abort and flag
 #lookup how to get process id for killing
@@ -177,6 +174,7 @@ for (( r = rangemin; r <= (rangemax); r += rangestep )); do
   for (( i = 1; i <= numruns; i++ )); do
     thislogdir="${runpath}/${date}_${r}K/"
     thislog="${date}_${i}_${r}K"
+    thislogpath="${thislogdir}${thislog}.log"
     
     configstr=""
     if [[ ${time} == "ranged" ]]; then
@@ -194,7 +192,7 @@ for (( r = rangemin; r <= (rangemax); r += rangestep )); do
     mkdir -p "${thislogdir}"
     sleep ${sleeptime}s
     #/var/log/kernel.log instead of dmesg
-    tail -f -n 1 /var/log/kern.log >> "${thislogdir}${thislog}.log" &
+    tail -f -n 1 /var/log/kern.log >> "${thislogpath}" &
     tailpid=$!
     #sudo tshark -Y "tcp.port==5201" >> ${runpath}/${date}_${i}.tshark.log &
     # Packet count is written to stderr so to suppress packet counts in terminal
@@ -218,18 +216,12 @@ for (( r = rangemin; r <= (rangemax); r += rangestep )); do
     kill ${tailpid}
     sleep 0.5s
     kill ${tsharkpid}
-    echo "runconf:{" >> "${thislogdir}${thislog}.log"
-    echo "size:${r}K" >> "${thislogdir}${thislog}.log"
-    echo "}" >> "${thislogdir}${thislog}.log"
+    echo "runconf : ${time}" >> "${thislogdir}${thislog}.log"
   done
 done
 
 echowname "Run ID: ${runid}, complete"
-if [[ extractip != "" ]]; then
-	IFS=' '
-	#echowname "Extracting to ${extractuser}@${extractip}"
-	#sudo -E -u ${SUDO_USER} scp -vvvvvvv -r testlogs/* ${extractuser}@${extractip}:/home/${extractuser}/CCASatTestSuite/testing/testlogs
+##TODO extraction not automatic for a few reasons
+
 fi
 rm "${lockfile}"
-#ccasatpi.dyn.wpi.edu
-#iperf3 -k 1 -c 41.226.22.119 -p 9239
