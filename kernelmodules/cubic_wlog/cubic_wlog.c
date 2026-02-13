@@ -370,6 +370,8 @@ __bpf_kfunc static void cubictcp_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 	if (!tcp_is_cwnd_limited(sk))
 		return;
 
+        //for hystart i can think of a better way wihtout adding some global
+        // but for cubic i think we will need to have a global that tracks the state
 	if (tcp_in_slow_start(tp)) {
 	        logstate(sk, "CUB", "SS");
 		acked = tcp_slow_start(tp, acked);

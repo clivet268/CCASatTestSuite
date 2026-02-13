@@ -1,14 +1,16 @@
 import os
 import matplotlib.pyplot as plt
+#https://stackoverflow.com/questions/10171618/changing-plot-scale-by-a-factor-in-matplotlib
+import matplotlib.ticker as ticker
 import argparse
 
-#filepath="/home/clivet268/Downloads/KernelLearnel/CCASatTestSuite/testlogs/2025-11-11_307677302/2025-11-11_307677302_1.log"
 filepath=os.getcwd()
 testlogsdir=f"{filepath}/testlogs/"
 outputdir=f"{filepath}/output/"
 frameworkdir=f"{outputdir}/framework/"
 tracelengthfilter=60
 desiredparsedlogs=["FRAMEWORK"]
+duration=10
 
 csvheader="now_us,bytes_acked,mss,rtt_us,tp_deliver_rate,tp_interval,tp_delivered,lost_pkt,total_retrans_pkt,app_limited,snd_nxt,sk_pacing_rate"
 
@@ -27,15 +29,23 @@ def scaletomin(x):
 
 def creategraphs(curflow, logtypeset, outputdir, flowpointer):
     if "HSPP" in logtypeset:
+        print("Graph of type : HSPP")
         bytesgraphcont=[("FRAMEWORK", [0,1]), ("HSPP", [0,1])]
-    else:
+    elif "HS" in logtypeset:
+        print("Graph of type : HS")
         bytesgraphcont=[("FRAMEWORK", [0,1]), ("HS", [0,1])]
-    
+    elif "SEARCH" in logtypeset:
+        print("Graph of type : SEARCH")
+        bytesgraphcont=[("FRAMEWORK", [0,1]), ("SEARCH", [0,1])]
+    else:
+        print("Graph of type : CUBIC")
+        bytesgraphcont=[("FRAMEWORK", [0,1]), ("CUB", [0,1])]
+    graphs=[bytesgraphcont]
     #print(f"graphing {flowpointer} with {curflow}")
     scalefactor = 1000000 # ms
     bytescale = 2 * 1000000 # 1 x 1MB
     bytemin = 0 * 1000000 # 1 x 1MB
-    displayseconds = 1 # seconds window size
+    displayseconds = duration # seconds window size
     displayoffset = 0 # seconds start offset
     graphcontents=0
     graphcontents=[[]] * len(graphs)
@@ -137,7 +147,11 @@ def creategraphs(curflow, logtypeset, outputdir, flowpointer):
             plt.plot(section[0], section[1], color=tcolor)
         ax = plt.gca()
         #in nsecs
+        scale_x = 1000000
+        #ticks = ticker.FuncFormatter(lambda x, pos: '{0:g}'.format(x/10000))
+        #ax.xaxis.set_major_formatter(ticks)
         ax.set_xlim([displayoffset * 1000000000/scalefactor, displayseconds * 1000000000/scalefactor])
+        #ax.set_xlim([0, displayseconds * 1000000000/scalefactor])
         ax.set_ylim([bytemin, bytescale])
         plt.title(flowpointer)
 
@@ -157,6 +171,7 @@ def processDir(parent, dir):
             processDir("",f"{parent}{dir}{dirs}/")
         else:
             if f"{dirs[-4:]}" == ".log":
+                #print(f"{testlogsdir}{parent}{dir}{dirs}")
                 processlog(f"{parent}{dir}{dirs}")
 
 def processalllogs():
@@ -184,6 +199,13 @@ def processlog(logfilepath):
             #collections.OrderedDict()
             flows = {}
             logtypeset = set()
+            #TODO
+            confline = inputfile.readlines()[-1]
+            inputfile.seek(0)
+            runindex = confline.find("runconf : ")
+            if runindex > -1:
+                duration = int(confline[runindex+1:])
+                #confline[runindex+1:].split(",")
             for line in inputfile:
                 # remove "]" at end
                 line = line[:-2]
@@ -201,9 +223,10 @@ def processlog(logfilepath):
                             flows[pieces[2]] = []
                         flows[pieces[2]].append((pieces[3], pieces[4].split(',')))
                         logtypeset.add(f"{pieces[3]}")
-                        print(f"{pieces[3]}")
-            print(f"{flows}")
-            print(f"{logtypeset}")
+                        #print(f"{pieces[3]}")
+            for keyy in flows.keys():
+                print(f"{keyy}")
+            #print(f"{logtypeset}")
             #Create all different log types relevant to this run
             for flowpointer in flows.keys():
                 print(f"Flowpointer:{flowpointer}")
