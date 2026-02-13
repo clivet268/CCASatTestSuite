@@ -157,7 +157,8 @@ sudo sysctl net.core.rmem_max >> "${logpath}${date}.sysconf"
 sudo sysctl net.core.wmem_max >> "${logpath}${date}.sysconf"
 sudo sysctl net.core.rmem_default >> "${logpath}${date}.sysconf"
 sudo sysctl net.core.wmem_default >> "${logpath}${date}.sysconf"
-
+#gather pcaps, for future reference/debugging
+#run in -R so we dont have to worry about hole punching
 #no/less magic numbers/vars, pass them in
 #use ps for flags that include iperf, then abort and flag
 #lookup how to get process id for killing
@@ -174,7 +175,6 @@ for (( r = rangemin; r <= (rangemax); r += rangestep )); do
   for (( i = 1; i <= numruns; i++ )); do
     thislogdir="${runpath}/${date}_${r}K/"
     thislog="${date}_${i}_${r}K"
-    thislogpath="${thislogdir}${thislog}.log"
     
     configstr=""
     if [[ ${time} == "ranged" ]]; then
@@ -192,7 +192,7 @@ for (( r = rangemin; r <= (rangemax); r += rangestep )); do
     mkdir -p "${thislogdir}"
     sleep ${sleeptime}s
     #/var/log/kernel.log instead of dmesg
-    tail -f -n 1 /var/log/kern.log >> "${thislogpath}" &
+    tail -f -n 1 /var/log/kern.log >> "${thislogdir}${thislog}.log" &
     tailpid=$!
     #sudo tshark -Y "tcp.port==5201" >> ${runpath}/${date}_${i}.tshark.log &
     # Packet count is written to stderr so to suppress packet counts in terminal
@@ -223,5 +223,4 @@ done
 echowname "Run ID: ${runid}, complete"
 ##TODO extraction not automatic for a few reasons
 
-fi
 rm "${lockfile}"
