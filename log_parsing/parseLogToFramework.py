@@ -69,7 +69,7 @@ def HSPPLogTOFrameworkOutput(l:list[dict]) ->list[str]:
   hspp_entered_css_at_round: {item["HSPP_CSS_ENTERED_AT_ROUND"]}
   hspp_css_baseline_minrtt: {item["HSPP_NEW_BASELINE_MINRTT"] if ('HSPP_NEW_BASELINE_MINRTT' in item.keys())else 0}
   hspp_last_round_minrtt: {item["HSPP_NEW_CSS_LAST_ROUND_MINRTT"]}
-  hspp_flag: { 0 if item["HSPP_STATE"]=='SS' else (1 if item["HSPP_STATE"]=='CSS' else 2) }
+  hspp_flag: { 1 if item["HSPP_STATE"]=='SS' else (2 if item["HSPP_STATE"]=='CSS' else 0) }
   snd_una: {item["snd_una"]}
   loss happen: {loss_flag }
 
