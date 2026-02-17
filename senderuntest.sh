@@ -86,7 +86,7 @@ rmlock() {
 	rm -f "${lockfile}"
 	kill "${tailpid}" > /dev/null 2> /dev/null
 	kill "${tsharkpid}" > /dev/null 2> /dev/null
-	pkill iperf3
+	sudo pkill iperf3
 	exit
 }
 
@@ -169,7 +169,7 @@ if [[ "$rangemin" == "$rangemax" ]]; then
 else
   echowname "Doing $(( ((rangemax + rangestep) - rangemin) / rangestep)) sets of ${numruns} test(s), transfer sizes ranging from ${rangemin}K to ${rangemax}K in steps of ${rangestep}K"
 fi
-#sudo pkill iperf3
+sudo pkill iperf3
 
 for (( r = rangemin; r <= (rangemax); r += rangestep )); do
   for (( i = 1; i <= numruns; i++ )); do
@@ -223,4 +223,5 @@ done
 echowname "Run ID: ${runid}, complete"
 ##TODO extraction not automatic for a few reasons
 
-rm "${lockfile}"
+#rm "${lockfile}"
+rmlock()
