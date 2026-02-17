@@ -86,7 +86,7 @@ rmlock() {
 	rm -f "${lockfile}"
 	kill "${tailpid}" > /dev/null 2> /dev/null
 	kill "${tsharkpid}" > /dev/null 2> /dev/null
-	sudo pkill iperf3
+	pkill iperf3
 	exit
 }
 
@@ -223,5 +223,5 @@ done
 echowname "Run ID: ${runid}, complete"
 ##TODO extraction not automatic for a few reasons
 
-#rm "${lockfile}"
-rmlock()
+rm "${lockfile}"
+rmlock
