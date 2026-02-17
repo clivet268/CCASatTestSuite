@@ -80,6 +80,7 @@ while getopts "ln:a:e:i:r:t:B:" arg; do
 	esac
 done
 
+lockfile="/var/lock/testsuite.lock"
 rmlock() {
 	echo
 	echowname "Removing lock..."
@@ -98,7 +99,6 @@ echowname "Sudoing"
 sudo echo "running as : ${USER}"
 echowname "from user : ${SUDO_USER}"
 #https://unix.stackexchange.com/questions/278904/linux-file-hierarchy-whats-the-best-location-to-store-lockfiless
-lockfile="/var/lock/testsuite.lock"
 while [[ -e $"${lockfile}" ]]; do
 	lockpid=$(cat ${lockfile})
 	if ps -p ${lockpid} > /dev/null; then
@@ -205,10 +205,10 @@ for (( r = rangemin; r <= (rangemax); r += rangestep )); do
       # -n is client side only, even if running n reverse
       # --one-off should keep things cleaner
       # in this setup you should be sending, so client in -R
-      iperf3 -B "${bindaddr}" -s --one-off >> "${thislogdir}${thislog}.iperflog"
+      iperf3 -B "${bindaddr}" -l 1K -s --one-off >> "${thislogdir}${thislog}.iperflog"
     else
     	#in this setup you should be sending as the
-    	iperf3 -B "${bindaddr}" "${configstr}" -c ccasatpi.dyn.wpi.edu >> "${thislogdir}${thislog}.iperflog"
+    	iperf3 -B "${bindaddr}" "${configstr}" -l 1K -c ccasatpi.dyn.wpi.edu >> "${thislogdir}${thislog}.iperflog"
     fi
     echowname "Complete"
     sleep 0.1s
