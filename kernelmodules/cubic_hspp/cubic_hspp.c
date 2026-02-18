@@ -524,6 +524,7 @@ __bpf_kfunc static void cubictcp_state(struct sock *sk, u8 new_state)
 	}
 
 	if (new_state == TCP_CA_Loss) {
+	        logadditional(sk, "HSPP LOSS", 1);
 		bictcp_reset(inet_csk_ca(sk));
 		bictcp_hystart_reset(sk);
 	}
