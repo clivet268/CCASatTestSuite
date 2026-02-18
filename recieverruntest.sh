@@ -96,13 +96,13 @@ trap rmlock SIGTERM
 echowname "receiving ${numruns} time(s)..."
 for ((i=1; i<=${numruns}; i++)); do
 	if [[ time != "" ]]; then
-		iperf3 -R -B "${bindaddr}" -t "${time}" -c "${senderhost}"
+		iperf3 -R -B "${bindaddr}" -t "${time}" -c "${senderhost}" -l 1K
 	else
 		if [[ ${transfersize} = "" ]]; then
-			iperf3 -R -B "${bindaddr}" -t 10 -c "${senderhost}"
+			iperf3 -R -B "${bindaddr}" -t 10 -c "${senderhost}" -l 1K
 		else
 			for (( r = rangemin; r <= (rangemax); r += rangestep )); do
-				iperf3 -R -B "${bindaddr}" -n "${transfersize}K" -c "${senderhost}"
+				iperf3 -R -B "${bindaddr}" -n "${transfersize}K" -c "${senderhost}" -l 1K
 			done
 		fi
 	fi

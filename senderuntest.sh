@@ -169,7 +169,7 @@ if [[ "$rangemin" == "$rangemax" ]]; then
 else
   echowname "Doing $(( ((rangemax + rangestep) - rangemin) / rangestep)) sets of ${numruns} test(s), transfer sizes ranging from ${rangemin}K to ${rangemax}K in steps of ${rangestep}K"
 fi
-sudo pkill iperf3
+#sudo pkill iperf3
 
 for (( r = rangemin; r <= (rangemax); r += rangestep )); do
   for (( i = 1; i <= numruns; i++ )); do
@@ -205,10 +205,11 @@ for (( r = rangemin; r <= (rangemax); r += rangestep )); do
       # -n is client side only, even if running n reverse
       # --one-off should keep things cleaner
       # in this setup you should be sending, so client in -R
-      iperf3 -B "${bindaddr}" -l 1K -s --one-off >> "${thislogdir}${thislog}.iperflog"
+      #https://github.com/esnet/iperf/issues/1308
+      iperf3 -B "${bindaddr}" -s --one-off >> "${thislogdir}${thislog}.iperflog"
     else
     	#in this setup you should be sending as the
-    	iperf3 -B "${bindaddr}" "${configstr}" -l 1K -c ccasatpi.dyn.wpi.edu >> "${thislogdir}${thislog}.iperflog"
+    	iperf3 -B "${bindaddr}" "${configstr}" -c ccasatpi.dyn.wpi.edu >> "${thislogdir}${thislog}.iperflog"
     fi
     echowname "Complete"
     sleep 0.1s
