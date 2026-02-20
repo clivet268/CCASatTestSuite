@@ -102,7 +102,7 @@ for ((i=1; i<=${numruns}; i++)); do
 			iperf3 -R -B "${bindaddr}" -t 10 -c "${senderhost}" -l 1K
 		else
 			for (( r = rangemin; r <= (rangemax); r += rangestep )); do
-				iperf3 -R -B "${bindaddr}" -n "${transfersize}K" -c "${senderhost}" -l 2K
+				iperf3 -R -B "${bindaddr}" -n "${transfersize}K" -c "${senderhost}"
 			done
 		fi
 	fi
