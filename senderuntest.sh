@@ -149,6 +149,15 @@ if [[ $(sudo sysctl net.ipv4.tcp_congestion_control) != "net.ipv4.tcp_congestion
 		rmlock
 	fi
 fi
+
+sudo sysctl -w net.ipv4.tcp_window_scaling = 1
+sudo sysctl -w net.ipv4.tcp_rmem="26214400	26214400	26214400"
+sudo sysctl -w net.ipv4.tcp_wmem="26214400	26214400	26214400"
+sudo sysctl -w net.core.rmem_max="26214400"
+sudo sysctl -w net.core.wmem_max="26214400"
+sudo sysctl -w net.core.rmem_default="26214400"
+sudo sysctl -w net.core.wmem_default="26214400"
+
 sudo sysctl net.ipv4.tcp_congestion_control >> "${logpath}${date}.sysconf"
 sudo sysctl net.ipv4.tcp_window_scaling >> "${logpath}${date}.sysconf"
 sudo sysctl net.ipv4.tcp_rmem >> "${logpath}${date}.sysconf"
