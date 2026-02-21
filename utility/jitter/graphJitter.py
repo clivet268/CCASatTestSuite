@@ -4,17 +4,8 @@ import os
 import argparse
 import parseCSV
 
-def main():
-    desc = '''
-    Takes in a trace file and graphs rtt over time and bytes ACKed over time
-    '''
-    parser =argparse.ArgumentParser(prog=os.path.basename(__file__),description=desc)
-    parser.add_argument('fileName',type=str)
-    args = parser.parse_args()
-    
-    
-    
-    headers,data=parseCSV.parseTrace(args.fileName)
+def graph(fiilename):
+    headers,data=parseCSV.parseTrace(fiilename)
 
     getRows = ["now_us",'bytes_acked',"rtt_us"]
     cleaned = parseCSV.getRelevant(getRows,headers,data)
@@ -29,23 +20,38 @@ def main():
         m[getRows[row]] = np.array(temp)
     
     m["now_us"] = np.vectorize(lambda x: float(x)/1000000)(m["now_us"])
+    m["rtt_us"] = np.vectorize(lambda x: float(x)/1000000)(m["rtt_us"])
     # print(m["now_us"])
 
-    plt.suptitle(args.fileName,fontsize=12)
+    plt.suptitle(fiilename,fontsize=12)
     
     plt.subplot(3,1,1)
     plt.plot(m["now_us"],m["rtt_us"])
-    plt.xlabel("Time (us)")
-    plt.ylabel("RTT (us)")
+    plt.xlabel("Time (s)")
+    plt.ylabel("RTT (s)")
     plt.title("RTT")
     plt.grid()
 
     plt.subplot(3,1,2)
     
     plt.plot(m["now_us"],m["bytes_acked"])
-    plt.xlabel("Time (us)")
+    plt.xlabel("Time (s)")
     plt.ylabel("Bytes ACKed")
     plt.title("Throughput")
+
+def main():
+    desc = '''
+    Takes in a trace file and graphs rtt over time and bytes ACKed over time
+    '''
+    parser =argparse.ArgumentParser(prog=os.path.basename(__file__),description=desc)
+    parser.add_argument('fileName',type=str)
+    parser.add_argument('fileName2',type=str)
+    args = parser.parse_args()
+    
+    
+    graph(args.fileName)
+    graph(args.fileName2)
+
     # plt.grid()
 
     #To double check that nothing got reordered
