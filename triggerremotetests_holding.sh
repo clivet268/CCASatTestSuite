@@ -23,7 +23,6 @@ recieverlocbind=""
 #basepath="${HOME}/CCASatTestSuite/"
 
 #set -o pipefail
-
 while getopts "dln:a:i:t:S:r:R:e:x:y:X:Y:" arg; do
 	case $arg in
 		a)
@@ -187,3 +186,4 @@ else
 	#sleep 604800s
 fi
 
+teststop
