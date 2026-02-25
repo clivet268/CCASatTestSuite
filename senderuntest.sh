@@ -120,7 +120,7 @@ if [[ ! ((-e $"${lockfile}") && ($(cat ${lockfile}) == "${$}")) ]]; then
 	exit
 fi
 
-date=$(date '+%Y-%m-%d-%S-%N')
+date=$(date '+%Y-%m-%d-%H-%M-%S-%N')
 basepath="${HOME}/CCASatTestSuite/"
 logpath="${basepath}testlogs/${runid}/"
 runpath="${logpath}${date}"
