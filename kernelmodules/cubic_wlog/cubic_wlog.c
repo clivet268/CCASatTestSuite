@@ -82,6 +82,11 @@ MODULE_PARM_DESC(hystart_low_window, "lower bound cwnd for hybrid slow start");
 module_param(hystart_ack_delta_us, int, 0644);
 MODULE_PARM_DESC(hystart_ack_delta_us, "spacing between ack's indicating train (usecs)");
 
+//CCASat logging
+#define STATECA 0
+#define STATESS 1
+static int ccasat_state __read_mostly = STATECA;
+
 /* BIC TCP Parameters */
 struct bictcp {
 	u32	cnt;		/* increase cwnd by 1 after ACKs */
@@ -370,16 +375,22 @@ __bpf_kfunc static void cubictcp_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 	if (!tcp_is_cwnd_limited(sk))
 		return;
 
-        //for hystart i can think of a better way wihtout adding some global
-        // but for cubic i think we will need to have a global that tracks the state
-	if (tcp_in_slow_start(tp)) {
+        if (tcp_in_slow_start(tp)){
+	    if(ccasat_state == STATECA){
+	        ccasat_state = STATESS;
+	        //logstate(sk, "CUBIC", "SS");
 	        logstate(sk, "CUB", "SS");
+	    }
 		acked = tcp_slow_start(tp, acked);
 		if (!acked)
 			return;
 	} else {
-	        logstate(sk, "CUB", "CA");
-        }
+	    if(ccasat_state == STATESS){
+	        ccasat_state = STATECA;
+                //logstate(sk, "CUBIC", "CA");
+                logstate(sk, "CUB", "CA");
+	    }
+	}
 	bictcp_update(ca, tcp_snd_cwnd(tp), acked);
 	tcp_cong_avoid_ai(tp, ca->cnt, acked);
 }
