@@ -19,5 +19,4 @@ sudo apt install python3-matplotlib
 sudo apt install python3-paramiko
 sudo apt install openssh-server
 sudo apt install openssh-client
-#sudo apt install tmux
 sudo apt-get install rsync
