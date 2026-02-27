@@ -120,7 +120,7 @@ if [[ ! ((-e $"${lockfile}") && ($(cat ${lockfile}) == "${$}")) ]]; then
 	exit
 fi
 
-date=$(date '+%Y-%m-%d-%s_%N')
+date=$(date '+%Y-%m-%d-%H-%M-%S-%N')
 basepath="${HOME}/CCASatTestSuite/"
 logpath="${basepath}testlogs/${runid}/"
 runpath="${logpath}${date}"
@@ -207,7 +207,7 @@ for (( r = rangemin; r <= (rangemax); r += rangestep )); do
     #sudo tshark -Y "tcp.port==5201" >> ${runpath}/${date}_${i}.tshark.log &
     # Packet count is written to stderr so to suppress packet counts in terminal
     #  do 2> /dev/null
-    sudo tshark -s 60 >> "${thislogdir}${thislog}.tsharklog" 2> /dev/null &
+    sudo tshark -s 60 -f "not arp" >> "${thislogdir}${thislog}.tsharklog" 2> /dev/null &
     tsharkpid=$!
     echowname "Waiting for reciever..."
     

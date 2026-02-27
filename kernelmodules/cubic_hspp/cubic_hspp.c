@@ -635,9 +635,9 @@ static void hystart_update(struct sock *sk, u32 delay)
 			if ((s32)(now - ca->round_start) > threshold) {
 				ca->found = 1;
 				//logprint(sk, "HYSTART_ACK_TRAIN", 1);
-				pr_debug("hystart_ack_train (%u > %u) delay_min %u (+ ack_delay %u) cwnd %u\n",
-					 now - ca->round_start, threshold,
-					 ca->delay_min, hystart_ack_delay(sk), tcp_snd_cwnd(tp));
+				//pr_debug("hystart_ack_train (%u > %u) delay_min %u (+ ack_delay %u) cwnd %u\n",
+				//	 now - ca->round_start, threshold,
+				//	 ca->delay_min, hystart_ack_delay(sk), tcp_snd_cwnd(tp));
 				NET_INC_STATS(sock_net(sk),
 					      LINUX_MIB_TCPHYSTARTTRAINDETECT);
 				NET_ADD_STATS(sock_net(sk),
