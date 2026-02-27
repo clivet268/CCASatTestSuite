@@ -14,7 +14,9 @@ def main():
     Takes in a trace file and graphs rtt over time and bytes ACKed over time
     '''
     parser =argparse.ArgumentParser(prog=os.path.basename(__file__),description=desc)
+    parser.add_argument('fileName2',type=str)
     parser.add_argument('fileName',type=str)
+    parser.add_argument('MaxTime',type=float)
     args = parser.parse_args()
     
     
@@ -39,6 +41,10 @@ def main():
             outlist.append(diff)
         return outlist
 
+
+    mx1=-1
+    mx2=-1
+
     def graph(fiilename):
         headers,data=parseCSV.parseTrace(fiilename)
 
@@ -57,35 +63,53 @@ def main():
         
         m["now_us"] = np.vectorize(lambda x: float(x)/1000000)(m["now_us"])
         m["rtt_us"] = np.vectorize(lambda x: float(x)/1000000)(m["rtt_us"])
+        jrtt = np.vectorize(lambda x: float(x)/1000000)(jrtt)
         # print(m["now_us"])
 
         plt.suptitle(fiilename,fontsize=12)
         
-        plt.subplot(3,1,1)
+        plt.subplot(2,1,1)
+        nonlocal mx1
+        nonlocal mx2
+        for i in range(len(m["now_us"])):
+            mx1=max(mx1,m["rtt_us"][i])
+            if(m["now_us"][i]>args.MaxTime):
+                break
         plt.plot(m["now_us"],m["rtt_us"])
         plt.xlabel("Time (s)")
         plt.ylabel("RTT (s)")
         plt.title("RTT")
         plt.ylim(bottom=0)
+        plt.ylim(top=mx1+0.1*mx1)
         plt.xlim(left=0)
+        plt.xlim(right=args.MaxTime)
         plt.grid()
 
-        plt.subplot(3,1,2)
+        # plt.subplot(2,1,2)
         
-        plt.plot(m["now_us"],m["bytes_acked"])
-        plt.xlabel("Time (s)")
-        plt.ylabel("Bytes ACKed")
-        plt.title("Throughput")
-        plt.ylim(bottom=0)
-        plt.xlim(left=0)
+        # plt.plot(m["now_us"],m["bytes_acked"])
+        # plt.xlabel("Time (s)")
+        # plt.ylabel("Bytes ACKed")
+        # plt.title("Throughput")
+        # plt.ylim(bottom=0)
+        # plt.xlim(left=0)
+        # plt.xlim(right=args.maxTime)
 
-        plt.subplot(3,1,3)
+        plt.subplot(2,1,2)
+        for i in range(len(m["now_us"])):
+            mx2=max(mx2,jrtt[i])
+            if(m["now_us"][i]>args.MaxTime):
+                break
+        
         plt.plot(m["now_us"],jrtt)
         plt.xlabel("Time (s)")
         plt.ylabel("InterArrival Time (us)")
         plt.title("Inter-Packet Arrival")
         plt.ylim(bottom=0)
+        plt.ylim(top=mx2+(0.1*mx2))
         plt.xlim(left=0)
+        plt.xlim(right=args.MaxTime)
+        
     
     graph(args.fileName)
     graph(args.fileName2)

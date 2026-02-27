@@ -44,6 +44,26 @@ def avg(trace:list[tuple[numberType,numberType]]) -> tuple[numberType,numberType
 
 
 def applyJitter(prev:tuple[numberType,numberType,bool]|None, cur:tuple[numberType,numberType,bool],srcPrev:tuple[numberType,numberType,bool]|None,span:numberType)->tuple[numberType,numberType,bool]:
+    timeToAdd=numberType(((rand.random()*2)-1)*span/2)
+    # timeToAdd=numberType(((rand.normalvariate())*span/2))
+    #start
+    if(prev==None):
+        return (cur[accumulatedTimeIndex]+timeToAdd,cur[roundTripTimeIndex]+timeToAdd,bool(cur[appLimitedIndex]))
+    diff = (cur[accumulatedTimeIndex]+timeToAdd-prev[accumulatedTimeIndex])
+    orderingFix:list[numberType] = [0]*2
+    #clamp
+    if(diff<minTime):
+        timeBetweenPacketBuffer = minTime # i got 18 microseconds
+        orderingFix[accumulatedTimeIndex]=prev[accumulatedTimeIndex] + timeBetweenPacketBuffer
+        time = orderingFix[accumulatedTimeIndex] - cur[accumulatedTimeIndex]
+        orderingFix[roundTripTimeIndex]=max(cur[roundTripTimeIndex] + time,timeBetweenPacketBuffer) # compute min 1gb/s and add here
+    # noIssue
+    else:
+        orderingFix[roundTripTimeIndex]=cur[roundTripTimeIndex]+timeToAdd
+        orderingFix[accumulatedTimeIndex]=max(cur[accumulatedTimeIndex]+timeToAdd,minTime)
+    return (orderingFix[0],orderingFix[1],bool(cur[appLimitedIndex]))
+        
+def applyJitter2(prev:tuple[numberType,numberType,bool]|None, cur:tuple[numberType,numberType,bool],srcPrev:tuple[numberType,numberType,bool]|None,span:numberType)->tuple[numberType,numberType,bool]:
     timeToAdd=numberType(((rand.random()*2)-1)*span)
     if(cur[roundTripTimeIndex]+timeToAdd < 0):
         timeToAdd = 0
@@ -113,8 +133,8 @@ def jitter(trace:list[tuple[numberType,numberType,bool]],amount:float,useAmountA
     outList.append( applyJitter(None,trace[0],None,span))
     for i in range(1,len(trace)):
         outList.append( applyJitter(outList[i-1],trace[i],trace[i-1],span))
-
-    return [(numberType(x[0]),numberType(x[1]),numberType(x[2])) for x in outList]
+    t = outList[0][accumulatedTimeIndex]
+    return [(numberType(x[0]-t),numberType(x[1]),numberType(x[2])) for x in outList]
 
 
 def test():
