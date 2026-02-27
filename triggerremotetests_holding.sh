@@ -178,6 +178,4 @@ cmdstr="sudo -E -s bash -c "\'"cd /home/${recieveruser}; /home/${recieveruser}/C
 #echo ${cmdstr}
 ssh ${rssh} ${recieverlocbind}"${cmdstr}"
 
-fi
-
 teststop
