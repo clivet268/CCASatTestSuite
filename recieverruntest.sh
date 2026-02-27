@@ -91,6 +91,16 @@ rmlock() {
 trap rmlock SIGINT
 trap rmlock SIGTERM
 
+
+
+sudo sysctl -w net.ipv4.tcp_window_scaling = 1
+sudo sysctl -w net.ipv4.tcp_rmem="26214400	26214400	26214400"
+sudo sysctl -w net.ipv4.tcp_wmem="26214400	26214400	26214400"
+sudo sysctl -w net.core.rmem_max="26214400"
+sudo sysctl -w net.core.wmem_max="26214400"
+sudo sysctl -w net.core.rmem_default="26214400"
+sudo sysctl -w net.core.wmem_default="26214400"
+
 #need sudo?
 #sudo echowname "running as : ${USER}"
 echowname "receiving ${numruns} time(s)..."
@@ -102,7 +112,7 @@ for ((i=1; i<=${numruns}; i++)); do
 			iperf3 -R -B "${bindaddr}" -t 10 -c "${senderhost}" -l 1K
 		else
 			for (( r = rangemin; r <= (rangemax); r += rangestep )); do
-				iperf3 -R -B "${bindaddr}" -n "${transfersize}K" -c "${senderhost}" -l 2K
+				iperf3 -R -B "${bindaddr}" -n "${transfersize}K" -c "${senderhost}"
 			done
 		fi
 	fi

@@ -120,7 +120,7 @@ if [[ ! ((-e $"${lockfile}") && ($(cat ${lockfile}) == "${$}")) ]]; then
 	exit
 fi
 
-date=$(date '+%Y-%m-%d-%s_%N')
+date=$(date '+%Y-%m-%d-%H-%M-%S-%N')
 basepath="${HOME}/CCASatTestSuite/"
 logpath="${basepath}testlogs/${runid}/"
 runpath="${logpath}${date}"
@@ -149,6 +149,15 @@ if [[ $(sudo sysctl net.ipv4.tcp_congestion_control) != "net.ipv4.tcp_congestion
 		rmlock
 	fi
 fi
+
+sudo sysctl -w net.ipv4.tcp_window_scaling = 1
+sudo sysctl -w net.ipv4.tcp_rmem="26214400	26214400	26214400"
+sudo sysctl -w net.ipv4.tcp_wmem="26214400	26214400	26214400"
+sudo sysctl -w net.core.rmem_max="26214400"
+sudo sysctl -w net.core.wmem_max="26214400"
+sudo sysctl -w net.core.rmem_default="26214400"
+sudo sysctl -w net.core.wmem_default="26214400"
+
 sudo sysctl net.ipv4.tcp_congestion_control >> "${logpath}${date}.sysconf"
 sudo sysctl net.ipv4.tcp_window_scaling >> "${logpath}${date}.sysconf"
 sudo sysctl net.ipv4.tcp_rmem >> "${logpath}${date}.sysconf"
@@ -197,7 +206,7 @@ for (( r = rangemin; r <= (rangemax); r += rangestep )); do
     #sudo tshark -Y "tcp.port==5201" >> ${runpath}/${date}_${i}.tshark.log &
     # Packet count is written to stderr so to suppress packet counts in terminal
     #  do 2> /dev/null
-    sudo tshark -s 60 >> "${thislogdir}${thislog}.tsharklog" 2> /dev/null &
+    sudo tshark -s 60 -f "not arp" >> "${thislogdir}${thislog}.tsharklog" 2> /dev/null &
     tsharkpid=$!
     echowname "Waiting for reciever..."
     
