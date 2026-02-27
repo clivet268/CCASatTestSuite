@@ -226,7 +226,7 @@ for (( r = rangemin; r <= (rangemax); r += rangestep )); do
     kill ${tailpid}
     sleep 0.5s
     kill ${tsharkpid}
-    echo "runconf : ${time}" >> "${thislogdir}${thislog}.log"
+    echo "runconf : ${time},[${algorithm}]" >> "${thislogdir}${thislog}.log"
   done
 done
 
