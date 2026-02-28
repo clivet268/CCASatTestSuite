@@ -19,24 +19,31 @@ fi
 #  it could be clunky as we try and graph the last few things, especially comparison 
 #  graphs
 processLog(){ 
-	echo "Processing file: ${1}"; 
+	#echo "Processing file: ${1}"; 
 	filenameout=${1::-4}
-	echo "Outputing to ${outputdir}/${filenameout}.txt"
+	#echo "Outputing to ${outputdir}/${filenameout}.txt"
 	#echo "explitive : ${outputdir}/$(dirname $1)/${filenameout}.txt"
 	if grep -q "[HSPP]" "$1"; then
-		python3 parseLogToFramework.py HSPP "${PWD}/${1}" "${outputdir}/$(dirname $1)/${filenameout}.txt" &
+		python3 parseLogToFramework.py HSPP "${PWD}/${1}" "${outputdir}/${filenameout}.txt"
+		python3	plot_hystartpp_dir.py "${outputdir}/$(dirname $1)" graphout 
 	elif grep -q "[CUB]" "$1"; then
-		python3 parseLogToFramework.py CUBIC "${PWD}/${1}" "${outputdir}/$(dirname $1)/${filenameout}.txt" &
+		python3 parseLogToFramework.py CUBIC "${PWD}/${1}" "${outputdir}/${filenameout}.txt"
 	elif grep -q "[HS]" "$1"; then
-		python3 parseLogToFramework.py HS "${PWD}/${1}" "${outputdir}/$(dirname $1)/${filenameout}.txt" &
+		python3 parseLogToFramework.py HS "${PWD}/${1}" "${outputdir}/${filenameout}.txt"
 	elif grep -q "[SEARCH]" "$1"; then
-		python3 parseLogToFramework.py SEARCH "${PWD}/${1}" "${outputdir}/$(dirname $1)/${filenameout}.txt" &
+		python3 parseLogToFramework.py SEARCH "${PWD}/${1}" "${outputdir}/${filenameout}.txt"
 	else
 		echo "NO LOG TYPE MARKERS FOUND FOR : ${1}"
 	fi
 }
 
 export -f processLog
-export outputdir
-find $1 -type f -name '*.log' -exec bash -c "processLog {}" \;
+#export outputdir
+#find $1 -type f -name '*.log' -exec bash -c "processLog {}" \; -exec sleep 0.1 \;
 
+#https://stackoverflow.com/a/54561526
+readarray -d '\n' toprocess < <(find $1 -type f -name '*.log')
+#echo ${toprocess}
+for fnam in $toprocess; do
+	processLog ${fnam}
+done
