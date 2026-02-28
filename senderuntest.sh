@@ -207,7 +207,7 @@ for (( r = rangemin; r <= (rangemax); r += rangestep )); do
     #sudo tshark -Y "tcp.port==5201" >> ${runpath}/${date}_${i}.tshark.log &
     # Packet count is written to stderr so to suppress packet counts in terminal
     #  do 2> /dev/null
-    sudo tcpdump -w "${thislogdir}${thislog}.pcap" -s 120 -f "not arp" >> "${thislogdir}${thislog}.tsharklog" 2> /dev/null &
+    sudo tcpdump -w "${thislogdir}${thislog}.pcap" -s 120 -f "not arp" &
     pcappid=$!
     echowname "Waiting for reciever..."
     
