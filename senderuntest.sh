@@ -9,7 +9,7 @@ rangemin=400
 rangemax=400
 rangestep=100
 namestring="sender"
-bindaddr="0.0.0.0"
+bindaddr=""
 time=""
 extractuser=""
 extractip=""
@@ -29,7 +29,7 @@ while getopts "ln:a:e:i:r:t:B:p:" arg; do
 			echowname "Using the ${algorithm} algorithm"
 			;;
 		B) 	
-    		bindaddr=$OPTARG
+    		bindaddr=" -B ${OPTARG}"
     		;;
 		e)
 			IFS='@'
@@ -221,11 +221,10 @@ for (( r = rangemin; r <= (rangemax); r += rangestep )); do
     	# --one-off should keep things cleaner
     	# in this setup you should be sending, so client in -R
     	#https://github.com/esnet/iperf/issues/1308
-    	echo "iperf3 -B "${bindaddr}${iperfport}" -s --one-off"
-    	iperf3 -B "${bindaddr}${iperfport}" -s --one-off >> "${thislogdir}${thislog}.iperflog"
+    	iperf3 "${bindaddr}${iperfport}" -s --one-off >> "${thislogdir}${thislog}.iperflog"
     else
     	#in this setup you should be sending as the
-    	iperf3 -B "${bindaddr}" "${configstr}${iperfport}" -c ccasatpi.dyn.wpi.edu >> "${thislogdir}${thislog}.iperflog"
+    	iperf3 "${bindaddr}${configstr}${iperfport}" -c ccasatpi.dyn.wpi.edu >> "${thislogdir}${thislog}.iperflog"
     fi
     echowname "Complete"
     sleep 0.1s

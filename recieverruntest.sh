@@ -10,7 +10,7 @@ rangemin=400
 rangemax=400
 rangestep=100
 namestring="reciever"
-bindaddr="0.0.0.0"
+bindaddr=""
 time=""
 iperfport=""
 
@@ -28,7 +28,7 @@ while getopts "n:a:i:r:s:e:t:B:p:" arg; do
 			;;
 		B) 	
 			echowname "binding to : ${OPTARG}"
-    		bindaddr=$OPTARG
+    		bindaddr=" -B ${OPTARG}"
     		;;
 		e)
 			IFS='@'
@@ -111,13 +111,13 @@ sudo sysctl -w net.core.wmem_default="262144000"
 echowname "receiving ${numruns} time(s)..."
 for ((i=1; i<=${numruns}; i++)); do
 	if [[ time != "" ]]; then
-		iperf3 -R -B "${bindaddr}${iperfport}" -t "${time}" -c "${senderhost}" -l 1K
+		iperf3 -R "${bindaddr}${iperfport}" -t "${time}" -c "${senderhost}" -l 1K
 	else
 		if [[ ${transfersize} = "" ]]; then
-			iperf3 -R -B "${bindaddr}${iperfport}" -t 10 -c "${senderhost}" -l 1K
+			iperf3 -R "${bindaddr}${iperfport}" -t 10 -c "${senderhost}" -l 1K
 		else
 			for (( r = rangemin; r <= (rangemax); r += rangestep )); do
-				iperf3 -R -B "${bindaddr}${iperfport}" -n "${transfersize}K" -c "${senderhost}"
+				iperf3 -R "${bindaddr}${iperfport}" -n "${transfersize}K" -c "${senderhost}"
 			done
 		fi
 	fi

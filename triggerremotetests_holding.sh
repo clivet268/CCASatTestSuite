@@ -19,6 +19,7 @@ time=""
 finalextract=""
 senderlocbind=""
 recieverlocbind=""
+iperfport=""
 #gets home of the triggering machine, not the desired ones
 #basepath="${HOME}/CCASatTestSuite/"
 
@@ -73,7 +74,7 @@ while getopts "lhn:a:i:t:S:r:R:e:x:y:X:Y:p:" arg; do
     		locrun=1
     		;;
     	p)
-    		iperfport=$OPTARG
+    		iperfport=" -p ${OPTARG}"
     		echo "iperf3 port : ${iperfport}"
     		;;
 		i)
@@ -166,9 +167,9 @@ fi
 #TODO make nicer the vars all bunched up are flags that might not be present
 #start remote sender
 echo "Sender bind : ${senderbind}"
-cmdstr="sudo -E -s bash -c "\'"cd /home/${senderuser}; /home/${senderuser}/CCASatTestSuite/senderuntest.sh -n ${numruns} -a ${algorithm} -i ${runid} ${finaltime}${finalrange}${senderbind}${finalextract} >> /home/${senderuser}/CCASatTestSuite/sender.out 2>&1 < /dev/null"\'
+cmdstr="sudo -E -s bash -c "\'"cd /home/${senderuser}; /home/${senderuser}/CCASatTestSuite/senderuntest.sh -n ${numruns} -a ${algorithm} -i ${runid} ${finaltime}${finalrange}${senderbind}${iperfport}${finalextract} >> /home/${senderuser}/CCASatTestSuite/sender.out 2>&1 < /dev/null"\'
 
-#echo ${cmdstr}
+echo ${cmdstr}
 ssh ${senderlocbind}${sssh} "${cmdstr}" &
 
 #wait for sender to get ready
@@ -178,9 +179,9 @@ sleep 6s
 
 echo "Triggering receiver"
 #start remote reciever
-cmdstr="sudo -E -s bash -c "\'"cd /home/${recieveruser}; /home/${recieveruser}/CCASatTestSuite/recieverruntest.sh -n ${numruns} -a ${algorithm} -i ${runid} ${finaltime}${finalrange} -s ${senderip} ${recieverbind}${finalextract} >> /home/${recieveruser}/CCASatTestSuite/reciever.out 2>&1 < /dev/null"\'
+cmdstr="sudo -E -s bash -c "\'"cd /home/${recieveruser}; /home/${recieveruser}/CCASatTestSuite/recieverruntest.sh -n ${numruns} -a ${algorithm} -i ${runid} ${finaltime}${finalrange} -s ${senderip} ${recieverbind}${iperfport}${finalextract} >> /home/${recieveruser}/CCASatTestSuite/reciever.out 2>&1 < /dev/null"\'
 
-#echo ${cmdstr}
+echo ${cmdstr}
 ssh ${recieverlocbind}${rssh} "${cmdstr}"
 
 teststop
