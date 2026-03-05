@@ -222,10 +222,10 @@ for (( r = rangemin; r <= (rangemax); r += rangestep )); do
     	# in this setup you should be sending, so client in -R
     	#https://github.com/esnet/iperf/issues/1308
     	echowname "iperf3 -s --one-off${bindaddr}${iperfport}"
-    	sudo iperf3 -s --one-off${bindaddr}${iperfport} >> "${thislogdir}${thislog}.iperflog"
+    	sudo iperf3 -4 -s --one-off${bindaddr}${iperfport} >> "${thislogdir}${thislog}.iperflog"
     else
     	#in this setup you should be sending as the
-    	sudo iperf3 ${bindaddr}${configstr}${iperfport} -c ccasatpi.dyn.wpi.edu >> "${thislogdir}${thislog}.iperflog"
+    	sudo iperf3 -4${bindaddr}${configstr}${iperfport} -c ccasatpi.dyn.wpi.edu >> "${thislogdir}${thislog}.iperflog"
     fi
     echowname "Complete"
     sleep 0.1s
