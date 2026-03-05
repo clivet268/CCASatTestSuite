@@ -13,6 +13,7 @@ bindaddr="0.0.0.0"
 time=""
 extractuser=""
 extractip=""
+iperfport=""
 
 echowname() {
 	echo "[${namestring}]    ${1}"
@@ -21,7 +22,7 @@ echowname() {
 #TODO should pipefail?
 #set -o pipefail
 
-while getopts "ln:a:e:i:r:t:B:" arg; do
+while getopts "ln:a:e:i:r:t:B:p:" arg; do
 	case $arg in
 		a)
 			algorithm=$OPTARG
@@ -42,12 +43,16 @@ while getopts "ln:a:e:i:r:t:B:" arg; do
 			runid=$OPTARG
 			echowname "Run ID ${runid}"
 			;;
-    l)
-    	echowname "Running in local mode"
-    	locrun=1
-    	;;
+		l)
+			echowname "Running in local mode"
+			locrun=1
+			;;
 		n) 	
     		numruns=$OPTARG
+    		;;
+		p) 	
+    		iperfport=" -p ${OPTARG}"
+    		echowname "iperf port : ${iperfport}"
     		;;
 		r)
 			if [[ ${time} != "" ]]; then
@@ -216,10 +221,10 @@ for (( r = rangemin; r <= (rangemax); r += rangestep )); do
     	# --one-off should keep things cleaner
     	# in this setup you should be sending, so client in -R
     	#https://github.com/esnet/iperf/issues/1308
-    	iperf3 -B "${bindaddr}" -s --one-off >> "${thislogdir}${thislog}.iperflog"
+    	iperf3 -B "${bindaddr}${iperfport}" -s --one-off >> "${thislogdir}${thislog}.iperflog"
     else
     	#in this setup you should be sending as the
-    	iperf3 -B "${bindaddr}" "${configstr}" -c ccasatpi.dyn.wpi.edu >> "${thislogdir}${thislog}.iperflog"
+    	iperf3 -B "${bindaddr}" "${iperfport}${configstr}" -c ccasatpi.dyn.wpi.edu >> "${thislogdir}${thislog}.iperflog"
     fi
     echowname "Complete"
     sleep 0.1s

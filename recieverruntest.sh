@@ -12,6 +12,7 @@ rangestep=100
 namestring="reciever"
 bindaddr="0.0.0.0"
 time=""
+iperfport=""
 
 echowname() {
 	echo "[${namestring}]    ${1}"
@@ -19,7 +20,7 @@ echowname() {
 
 #set -o pipefail
 
-while getopts "n:a:i:r:s:e:t:B:" arg; do
+while getopts "n:a:i:r:s:e:t:B:p:" arg; do
 	case $arg in
 		a)
 			algorithm=$OPTARG
@@ -41,6 +42,10 @@ while getopts "n:a:i:r:s:e:t:B:" arg; do
 			runid=$OPTARG
 			echowname "Run ID ${runid}"
 			;;
+		p) 	
+    		iperfport=" -p ${OPTARG}"
+    		echowname "iperf port : ${iperfport}"
+    		;;
 		n) 	
     		numruns=$OPTARG
     		echo "${OPTARG}"
@@ -106,13 +111,13 @@ sudo sysctl -w net.core.wmem_default="262144000"
 echowname "receiving ${numruns} time(s)..."
 for ((i=1; i<=${numruns}; i++)); do
 	if [[ time != "" ]]; then
-		iperf3 -R -B "${bindaddr}" -t "${time}" -c "${senderhost}" -l 1K
+		iperf3 -R -B "${bindaddr}${iperfport}" -t "${time}" -c "${senderhost}" -l 1K
 	else
 		if [[ ${transfersize} = "" ]]; then
-			iperf3 -R -B "${bindaddr}" -t 10 -c "${senderhost}" -l 1K
+			iperf3 -R -B "${bindaddr}${iperfport}" -t 10 -c "${senderhost}" -l 1K
 		else
 			for (( r = rangemin; r <= (rangemax); r += rangestep )); do
-				iperf3 -R -B "${bindaddr}" -n "${transfersize}K" -c "${senderhost}"
+				iperf3 -R -B "${bindaddr}${iperfport}" -n "${transfersize}K" -c "${senderhost}"
 			done
 		fi
 	fi

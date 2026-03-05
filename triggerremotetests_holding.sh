@@ -40,7 +40,7 @@ Options:
 EOF
 }
 
-while getopts "lhn:a:i:t:S:r:R:e:x:y:X:Y:" arg; do
+while getopts "lhn:a:i:t:S:r:R:e:x:y:X:Y:p:" arg; do
 	case $arg in
 		h)
 			echo "$(usage)"
@@ -71,6 +71,10 @@ while getopts "lhn:a:i:t:S:r:R:e:x:y:X:Y:" arg; do
     	l)
     		echo "Running in local mode"
     		locrun=1
+    		;;
+    	p)
+    		iperfport=$OPTARG
+    		echo "iperf3 port : ${iperfport}"
     		;;
 		i)
 			runid=$OPTARG
@@ -161,6 +165,7 @@ fi
 	
 #TODO make nicer the vars all bunched up are flags that might not be present
 #start remote sender
+echo "Sender bind : ${senderbind}"
 cmdstr="sudo -E -s bash -c "\'"cd /home/${senderuser}; /home/${senderuser}/CCASatTestSuite/senderuntest.sh -n ${numruns} -a ${algorithm} -i ${runid} ${finaltime}${finalrange}${senderbind}${finalextract} >> /home/${senderuser}/CCASatTestSuite/sender.out 2>&1 < /dev/null"\'
 
 #echo ${cmdstr}
@@ -176,6 +181,6 @@ echo "Triggering receiver"
 cmdstr="sudo -E -s bash -c "\'"cd /home/${recieveruser}; /home/${recieveruser}/CCASatTestSuite/recieverruntest.sh -n ${numruns} -a ${algorithm} -i ${runid} ${finaltime}${finalrange} -s ${senderip} ${recieverbind}${finalextract} >> /home/${recieveruser}/CCASatTestSuite/reciever.out 2>&1 < /dev/null"\'
 
 #echo ${cmdstr}
-ssh ${rssh} ${recieverlocbind}"${cmdstr}"
+ssh ${recieverlocbind}${rssh} "${cmdstr}"
 
 teststop
