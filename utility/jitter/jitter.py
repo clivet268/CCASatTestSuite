@@ -12,6 +12,12 @@ roundTripTimeIndex=1
 accumulatedTimeIndex=0
 minTime = 18
 
+verbose = False
+def printL(*args):
+    if(verbose):
+        print(*args)
+
+
 def calcInterpacketTime(t:list[tuple[numberType,numberType]]) -> list[numberType]:
     outlist = [numberType(0)]
     for i in range(1,len(t)):
@@ -196,9 +202,12 @@ def main():
     '''
     parser =argparse.ArgumentParser(prog=os.path.basename(__file__),description=desc)
     parser.add_argument('-M',action='store_true',help="Interprets jitterAmount as a time")
+    parser.add_argument('-V',action='store_true', help="enable verbosePrinting")
     parser.add_argument('fileName',type=str)
     parser.add_argument('jitterAmount',type=float,help="A percent (with 1 as 100%%) of the average inter-packet arrival time to jitter by")
     args = parser.parse_args()
+    global verbose
+    verbose = args.V
     
     rand.seed(datetime.now().timestamp())
     
