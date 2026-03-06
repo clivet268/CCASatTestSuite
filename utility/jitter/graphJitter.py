@@ -32,6 +32,7 @@ def main():
         print(f"\tSkipped: {outFileName} is newer than source file")
         exit(0)
     import matplotlib.pyplot as plt
+    import matplotlib.markers as pltm
     import numpy as np
 
     def calcInterpacketTime(t:list[tuple[numberType,numberType]]) -> list[numberType]:
@@ -44,6 +45,7 @@ def main():
 
     mx1=-1
     mx2=-1
+    maxTime = args.MaxTime if args.MaxTime > 0 else -1
 
     def graph(fiilename):
         headers,data=parseCSV.parseTrace(fiilename)
@@ -73,42 +75,40 @@ def main():
         nonlocal mx2
         for i in range(len(m["now_us"])):
             mx1=max(mx1,m["rtt_us"][i])
-            if(m["now_us"][i]>args.MaxTime):
+            if(maxTime != -1 and m["now_us"][i]>maxTime):
                 break
         plt.plot(m["now_us"],m["rtt_us"])
+        plt.scatter(m["now_us"],m["rtt_us"],s=10,marker=pltm.MarkerStyle("+"),c="black")
         plt.xlabel("Time (s)")
         plt.ylabel("RTT (s)")
         plt.title("RTT")
         plt.ylim(bottom=0)
         plt.ylim(top=mx1+0.1*mx1)
         plt.xlim(left=0)
-        plt.xlim(right=args.MaxTime)
-        plt.grid()
-
-        # plt.subplot(2,1,2)
-        
-        # plt.plot(m["now_us"],m["bytes_acked"])
-        # plt.xlabel("Time (s)")
-        # plt.ylabel("Bytes ACKed")
-        # plt.title("Throughput")
-        # plt.ylim(bottom=0)
-        # plt.xlim(left=0)
-        # plt.xlim(right=args.maxTime)
+        if(maxTime == -1):
+            plt.autoscale(True,'x')
+        else:
+            plt.xlim(right=maxTime)
+        plt.grid(visible=True,axis='x')
 
         plt.subplot(2,1,2)
+        plt.grid(visible=True,axis='x')
         for i in range(len(m["now_us"])):
             mx2=max(mx2,jrtt[i])
-            if(m["now_us"][i]>args.MaxTime):
+            if(maxTime != -1 and m["now_us"][i]>maxTime):
                 break
         
         plt.plot(m["now_us"],jrtt)
         plt.xlabel("Time (s)")
-        plt.ylabel("InterArrival Time (us)")
+        plt.ylabel("InterArrival Time (s)")
         plt.title("Inter-Packet Arrival")
         plt.ylim(bottom=0)
         plt.ylim(top=mx2+(0.1*mx2))
         plt.xlim(left=0)
-        plt.xlim(right=args.MaxTime)
+        if(maxTime == -1):
+            plt.autoscale(True,'x')
+        else:
+            plt.xlim(right=maxTime)
         
     
     graph(args.fileName)
