@@ -27,15 +27,16 @@ while getopts "n:a:i:r:s:e:t:B:p:" arg; do
 			echowname "Using the ${algorithm} algorithm"
 			;;
 		B) 	
-			echowname "binding to : ${OPTARG}"
+			IFS='@'
     		bindaddr=" -B ${OPTARG}"
+			echowname "binding to : ${bindaddr}"
     		;;
 		e)
 			IFS='@'
       		read -ra extractstring <<< "$OPTARG"
 			extractuser=${extractstring[0]}
 			extractip=${extractstring[1]}
-			IFS=' '
+			IFS=''
 			finalextract=" -e ${extractuser}@${extractip}"
 			;;
 		i)
@@ -84,6 +85,7 @@ while getopts "n:a:i:r:s:e:t:B:p:" arg; do
 	    	echowname "One or more flags not understood"
 	esac
 done
+IFS=''
 
 
 rmlock() {
@@ -109,15 +111,18 @@ sudo sysctl -w net.core.wmem_default="262144000"
 #need sudo?
 #sudo echowname "running as : ${USER}"
 echowname "receiving ${numruns} time(s)..."
+echowname "iperf port : ${iperfport}"
 for ((i=1; i<=${numruns}; i++)); do
 	if [[ time != "" ]]; then
-		iperf3 -R "${bindaddr}${iperfport}" -t "${time}" -c "${senderhost}" -l 1K
+		echowname "iperf3 -c ${senderhost}${bindaddr}${iperfport} -t ${time} -R" 
+		cmdstr="iperf3 -c ${senderhost}${bindaddr}${iperfport} -t ${time} -R"
+		eval "${cmdstr}"
 	else
 		if [[ ${transfersize} = "" ]]; then
-			iperf3 -R "${bindaddr}${iperfport}" -t 10 -c "${senderhost}" -l 1K
+			iperf3 -c "${senderhost}"${bindaddr}${iperfport} -R -t 10
 		else
 			for (( r = rangemin; r <= (rangemax); r += rangestep )); do
-				iperf3 -R "${bindaddr}${iperfport}" -n "${transfersize}K" -c "${senderhost}"
+				iperf3 -c "${senderhost}"${bindaddr}${iperfport} -n "${transfersize}K" -R
 			done
 		fi
 	fi
