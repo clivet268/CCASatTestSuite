@@ -100,7 +100,7 @@ trap rmlock SIGTERM
 
 
 
-sudo sysctl -w net.ipv4.tcp_window_scaling = 1
+sudo sysctl -w net.ipv4.tcp_window_scaling=1
 sudo sysctl -w net.ipv4.tcp_rmem="262144000	262144000	262144000"
 sudo sysctl -w net.ipv4.tcp_wmem="262144000	262144000	262144000"
 sudo sysctl -w net.core.rmem_max="262144000"
