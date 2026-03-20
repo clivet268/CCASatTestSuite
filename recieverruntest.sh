@@ -99,6 +99,11 @@ trap rmlock SIGINT
 trap rmlock SIGTERM
 
 
+date=$(date '+%Y-%m-%d-%H-%M-%S-%N')
+basepath="${HOME}/CCASatTestSuite/"
+#this differs from sender! works better with our striped only usage, much nicer imo
+logpath="${basepath}testlogs/${runid}/"
+mkdir -p "${logpath}"
 
 sudo sysctl -w net.ipv4.tcp_window_scaling=1
 sudo sysctl -w net.ipv4.tcp_rmem="262144000	262144000	262144000"
@@ -112,7 +117,9 @@ sudo sysctl -w net.core.wmem_default="262144000"
 #sudo echowname "running as : ${USER}"
 echowname "receiving ${numruns} time(s)..."
 echowname "iperf port : ${iperfport}"
+pcappid=$!
 for ((i=1; i<=${numruns}; i++)); do
+	sudo tcpdump -w "${thislogdir}${thislog}.pcap" -s 120 -f "tcp[tcpflags] & tcp-ack != 0 and port 5201" &
 	if [[ time != "" ]]; then
 		echowname "iperf3 -c ${senderhost}${bindaddr}${iperfport} -t ${time} -R" 
 		cmdstr="iperf3 -c ${senderhost}${bindaddr}${iperfport} -t ${time} -R"
@@ -126,6 +133,8 @@ for ((i=1; i<=${numruns}; i++)); do
 			done
 		fi
 	fi
+    sleep 0.5s
+    kill ${pcappid}
 	sleep 14s
 done
 

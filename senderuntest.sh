@@ -213,7 +213,7 @@ for (( r = rangemin; r <= (rangemax); r += rangestep )); do
     # Packet count is written to stderr so to suppress packet counts in terminal
     #  do 2> /dev/null
     sudo tcpdump -w "${thislogdir}${thislog}.pcap" -s 120 -f "tcp[tcpflags] & tcp-ack != 0 and port 5201" &
-    pcappid=$!
+	pcappid=$!
     echowname "Waiting for reciever..."
     
     if [[ $locrun == 0 ]]; then
@@ -222,7 +222,7 @@ for (( r = rangemin; r <= (rangemax); r += rangestep )); do
     	# in this setup you should be sending, so client in -R
     	#https://github.com/esnet/iperf/issues/1308
     	echowname "iperf3 -s --one-off${bindaddr}${iperfport}"
-    	iperf3 -V -s --one-off${bindaddr}${iperfport} >> "${thislogdir}${thislog}.iperflog"
+    	iperf3 -V -s --one-off${bindaddr}${iperfport} >> "${thislogdir}${thislog}.iperflog" -l 1K
     else
     	#in this setup you should be sending as the
     	iperf3 ${bindaddr}${configstr}${iperfport} -c ccasatpi.dyn.wpi.edu >> "${thislogdir}${thislog}.iperflog"
