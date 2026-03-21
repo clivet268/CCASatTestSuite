@@ -11,6 +11,7 @@ rangemax=400
 rangestep=100
 namestring="reciever"
 bindaddr=""
+tcpbindaddr=""
 time=""
 iperfport=""
 
@@ -29,6 +30,7 @@ while getopts "n:a:i:r:s:e:t:B:p:" arg; do
 		B) 	
 			IFS='@'
     		bindaddr=" -B ${OPTARG}"
+    		tcpbindaddr=" -i ${OPTARG}"
 			echowname "binding to : ${bindaddr}"
     		;;
 		e)
@@ -119,7 +121,7 @@ echowname "receiving ${numruns} time(s)..."
 echowname "iperf port : ${iperfport}"
 pcappid=$!
 for ((i=1; i<=${numruns}; i++)); do
-	sudo tcpdump -w "${logpath}${runid}_i.pcap" -s 120 -f "tcp[tcpflags] & tcp-ack != 0 and port 5201" &
+	sudo tcpdump -w "${logpath}${runid}_i.pcap" -s 120 -f "tcp[tcpflags] & tcp-ack != 0 and port 5201"${tcpbindaddr} &
 	if [[ time != "" ]]; then
 		echowname "iperf3 -c ${senderhost}${bindaddr}${iperfport} -t ${time} -R" 
 		cmdstr="iperf3 -c ${senderhost}${bindaddr}${iperfport} -t ${time} -R"
