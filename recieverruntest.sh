@@ -119,10 +119,10 @@ sudo sysctl -w net.core.wmem_default="262144000"
 #sudo echowname "running as : ${USER}"
 echowname "receiving ${numruns} time(s)..."
 echowname "iperf port : ${iperfport}"
-pcappid=$!
 for ((i=1; i<=${numruns}; i++)); do
-	echo "sudo tcpdump -w ${logpath}${runid}_i.pcap -s 120 -f tcp[tcpflags] & tcp-ack != 0 and port 5201${tcpbindaddr} &"
-	sudo tcpdump -w "${logpath}${runid}_i.pcap" -s 120 -f "tcp[tcpflags] & tcp-ack != 0 and port 5201${tcpbindaddr}" &
+	echowname "sudo tcpdump -w ${logpath}${runid}_${i}.pcap -s 120 -f tcp[tcpflags] & tcp-ack != 0 and port 5201${tcpbindaddr} &"
+	sudo tcpdump -w "${logpath}${runid}_${i}.pcap" -s 120 -f "tcp[tcpflags] & tcp-ack != 0 and port 5201${tcpbindaddr}" &
+	pcappid=$!
 	if [[ time != "" ]]; then
 		echowname "iperf3 -c ${senderhost}${bindaddr}${iperfport} -t ${time} -R" 
 		cmdstr="iperf3 -c ${senderhost}${bindaddr}${iperfport} -t ${time} -R"
@@ -137,6 +137,7 @@ for ((i=1; i<=${numruns}; i++)); do
 		fi
 	fi
     sleep 0.5s
+    echowname "kill ${pcappid}"
     kill ${pcappid}
 	sleep 14s
 done
