@@ -221,7 +221,7 @@ for (( r = rangemin; r <= (rangemax); r += rangestep )); do
     	# --one-off should keep things cleaner
     	# in this setup you should be sending, so client in -R
     	#https://github.com/esnet/iperf/issues/1308
-    	echowname "iperf3 -s --one-off${bindaddr}${iperfport}"
+    	echowname "iperf3 -V -s --one-off${bindaddr}${iperfport} >> ${thislogdir}${thislog}.iperflog"
     	iperf3 -V -s --one-off${bindaddr}${iperfport} >> "${thislogdir}${thislog}.iperflog"
     else
     	#in this setup you should be sending as the
