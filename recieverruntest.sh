@@ -124,10 +124,11 @@ for ((i=1; i<=${numruns}; i++)); do
 	sudo tcpdump -w "${logpath}${runid}_${i}.pcap" -s 120 -f "tcp[tcpflags] & tcp-ack != 0 and port 5201${tcpbindaddr}" &
 	pcappid=$!
 	if [[ time != "" ]]; then
-		echowname "iperf3 -c ${senderhost}${bindaddr}${iperfport} -t ${time} -R" 
-		cmdstr="iperf3 -c ${senderhost}${bindaddr}${iperfport} -t ${time} -R"
+		echowname "iperf3 -c ${senderhost}${bindaddr}${iperfport} -t ${time} -R >> ${logpath}${runid}_${i}.iperflog" 
+		cmdstr="iperf3 -c ${senderhost}${bindaddr}${iperfport} -t ${time} -R >> ${logpath}${runid}_${i}.iperflog"
 		eval "${cmdstr}"
 	else
+		##not updated
 		if [[ ${transfersize} = "" ]]; then
 			iperf3 -c "${senderhost}"${bindaddr}${iperfport} -R -t 10
 		else
