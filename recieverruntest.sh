@@ -120,7 +120,7 @@ sudo sysctl -w net.core.wmem_default="262144000"
 echowname "receiving ${numruns} time(s)..."
 echowname "iperf port : ${iperfport}"
 for ((i=1; i<=${numruns}; i++)); do
-	echowname "sudo tcpdump -w ${logpath}${runid}_${i}.pcap -s 120 -f tcp[tcpflags] & tcp-ack != 0 and port 5201${tcpbindaddr} &"
+	echowname "sudo tcpdump -i any -w ${logpath}${runid}_${i}.pcap -s 120 -f tcp[tcpflags] & tcp-ack != 0 and port 5201${tcpbindaddr} &"
 	sudo tcpdump -w "${logpath}${runid}_${i}.pcap" -s 120 -f "tcp[tcpflags] & tcp-ack != 0 and port 5201${tcpbindaddr}" &
 	pcappid=$!
 	if [[ time != "" ]]; then
