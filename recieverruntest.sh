@@ -94,6 +94,7 @@ rmlock() {
 	echo
 	echowname "Cleaning up..."
 	pkill iperf3
+    sudo kill -2 ${pcappid}
 	exit
 }
 
@@ -137,8 +138,8 @@ for ((i=1; i<=${numruns}; i++)); do
 			done
 		fi
 	fi
-    echowname "sudo kill -9 ${pcappid}"
-    sudo kill -9 ${pcappid}
+    echowname "sudo kill -2 ${pcappid}"
+    sudo kill -2 ${pcappid}
 	sleep 14s
 done
 
