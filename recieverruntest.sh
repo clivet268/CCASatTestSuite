@@ -141,6 +141,7 @@ for ((i=1; i<=${numruns}; i++)); do
 		fi
 	fi
     echowname "pcappid=$(pgrep -n tcpdump)"
+    echowname "the same? $(pgrep -f "${logpath}${runid}_${i}.pcap")"
     pcappid=$(pgrep -n tcpdump)
     sudo kill -2 ${pcappid}
 	sleep 14s
