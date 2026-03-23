@@ -94,6 +94,7 @@ rmlock() {
 	echo
 	echowname "Cleaning up..."
 	pkill iperf3
+    pcappid=$(pgrep -n tcpdump)
     sudo kill -2 ${pcappid}
 	exit
 }
@@ -139,7 +140,8 @@ for ((i=1; i<=${numruns}; i++)); do
 			done
 		fi
 	fi
-    echowname "sudo kill -2 ${pcappid}"
+    echowname "pcappid=$(pgrep -n tcpdump)"
+    pcappid=$(pgrep -n tcpdump)
     sudo kill -2 ${pcappid}
 	sleep 14s
 done
