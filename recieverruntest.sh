@@ -123,7 +123,7 @@ echowname "iperf port : ${iperfport}"
 for ((i=1; i<=${numruns}; i++)); do
 	echowname "sudo tcpdump -i $(ip -br addr show | grep 192.168.1.107 | awk '{print $1}') -w ${logpath}${runid}_${i}.pcap -s 120 -f tcp[tcpflags] & tcp-ack != 0 and port 5201${tcpbindaddr} &"
 	cmdstr="sudo tcpdump -i $(ip -br addr show | grep 192.168.1.107 | awk '{print $1}') -w ${logpath}${runid}_${i}.pcap -s 120 -f 'tcp[tcpflags] & tcp-ack != 0 and port 5201${tcpbindaddr}' &"
-	sudo bash -c "${cmdstr}"
+	sudo bash -c "${cmdstr}" &
 	pcappid=$!
 	if [[ ${time} != "" ]]; then
 		echowname "iperf3 -c ${senderhost}${bindaddr}${iperfport} -t ${time} -R >> ${logpath}${runid}_${i}.iperflog" 
