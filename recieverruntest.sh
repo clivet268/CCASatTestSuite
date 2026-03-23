@@ -139,7 +139,7 @@ for ((i=1; i<=${numruns}; i++)); do
 	fi
     sleep 0.5s
     echowname "kill ${pcappid}"
-    kill ${pcappid}
+    sudo kill ${pcappid}
 	sleep 14s
 done
 
