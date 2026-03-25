@@ -10,8 +10,10 @@ rangemin=400
 rangemax=400
 rangestep=100
 namestring="reciever"
-bindaddr="0.0.0.0"
+bindaddr=""
+tcpbindaddr=""
 time=""
+iperfport=""
 
 echowname() {
 	echo "[${namestring}]    ${1}"
@@ -19,28 +21,34 @@ echowname() {
 
 #set -o pipefail
 
-while getopts "n:a:i:r:s:e:t:B:" arg; do
+while getopts "n:a:i:r:s:e:t:B:p:" arg; do
 	case $arg in
 		a)
 			algorithm=$OPTARG
 			echowname "Using the ${algorithm} algorithm"
 			;;
 		B) 	
-			echowname "binding to : ${OPTARG}"
-    		bindaddr=$OPTARG
+			IFS='@'
+    		bindaddr=" -B ${OPTARG}"
+    		tcpbindaddr=" and host ${OPTARG}"
+			echowname "binding to : ${bindaddr}"
     		;;
 		e)
 			IFS='@'
       		read -ra extractstring <<< "$OPTARG"
 			extractuser=${extractstring[0]}
 			extractip=${extractstring[1]}
-			IFS=' '
+			IFS=''
 			finalextract=" -e ${extractuser}@${extractip}"
 			;;
 		i)
 			runid=$OPTARG
 			echowname "Run ID ${runid}"
 			;;
+		p) 	
+    		iperfport=" -p ${OPTARG}"
+    		echowname "iperf port : ${iperfport}"
+    		;;
 		n) 	
     		numruns=$OPTARG
     		echo "${OPTARG}"
@@ -79,12 +87,15 @@ while getopts "n:a:i:r:s:e:t:B:" arg; do
 	    	echowname "One or more flags not understood"
 	esac
 done
+IFS=''
 
 
 rmlock() {
 	echo
 	echowname "Cleaning up..."
 	pkill iperf3
+    pcappid=$(pgrep -n tcpdump)
+    sudo kill -2 ${pcappid}
 	exit
 }
 
@@ -92,30 +103,47 @@ trap rmlock SIGINT
 trap rmlock SIGTERM
 
 
+date=$(date '+%Y-%m-%d-%H-%M-%S-%N')
+basepath="${HOME}/CCASatTestSuite/"
+#this differs from sender! works better with our striped only usage, much nicer imo
+logpath="${basepath}testlogs/${runid}/"
+mkdir -p "${logpath}"
 
-sudo sysctl -w net.ipv4.tcp_window_scaling = 1
-sudo sysctl -w net.ipv4.tcp_rmem="26214400	26214400	26214400"
-sudo sysctl -w net.ipv4.tcp_wmem="26214400	26214400	26214400"
-sudo sysctl -w net.core.rmem_max="26214400"
-sudo sysctl -w net.core.wmem_max="26214400"
-sudo sysctl -w net.core.rmem_default="26214400"
-sudo sysctl -w net.core.wmem_default="26214400"
+sudo sysctl -w net.ipv4.tcp_window_scaling=1
+sudo sysctl -w net.ipv4.tcp_rmem="262144000	262144000	262144000"
+sudo sysctl -w net.ipv4.tcp_wmem="262144000	262144000	262144000"
+sudo sysctl -w net.core.rmem_max="262144000"
+sudo sysctl -w net.core.wmem_max="262144000"
+sudo sysctl -w net.core.rmem_default="262144000"
+sudo sysctl -w net.core.wmem_default="262144000"
 
 #need sudo?
 #sudo echowname "running as : ${USER}"
 echowname "receiving ${numruns} time(s)..."
+echowname "iperf port : ${iperfport}"
 for ((i=1; i<=${numruns}; i++)); do
-	if [[ time != "" ]]; then
-		iperf3 -R -B "${bindaddr}" -t "${time}" -c "${senderhost}" -l 1K
+	echowname "sudo tcpdump -i $(ip -br addr show | grep 192.168.1.107 | awk '{print $1}') -w ${logpath}${runid}.pcap -s 120 -f tcp[tcpflags] & tcp-ack != 0 and port 5201${tcpbindaddr} &"
+	cmdstr="exec tcpdump -i $(ip -br addr show | grep 192.168.1.107 | awk '{print $1}') -w ${logpath}${runid}.pcap -s 120 -f 'tcp[tcpflags] & tcp-ack != 0 and port 5201${tcpbindaddr}'"
+	sudo bash -c "${cmdstr}" &
+	pcappid=$!
+	if [[ ${time} != "" ]]; then
+		echowname "iperf3 -c ${senderhost}${bindaddr}${iperfport} -t ${time} -R >> ${logpath}${runid}.iperflog" 
+		cmdstr="iperf3 -c ${senderhost}${bindaddr}${iperfport} -t ${time} -R >> ${logpath}${runid}.iperflog"
+		eval "${cmdstr}"
 	else
+		##not updated
 		if [[ ${transfersize} = "" ]]; then
-			iperf3 -R -B "${bindaddr}" -t 10 -c "${senderhost}" -l 1K
+			iperf3 -c "${senderhost}"${bindaddr}${iperfport} -R -t 10
 		else
 			for (( r = rangemin; r <= (rangemax); r += rangestep )); do
-				iperf3 -R -B "${bindaddr}" -n "${transfersize}K" -c "${senderhost}"
+				iperf3 -c "${senderhost}"${bindaddr}${iperfport} -n "${transfersize}K" -R
 			done
 		fi
 	fi
+    echowname "pcappid=$(pgrep -n tcpdump)"
+    echowname "the same? $(pgrep -f "${logpath}${runid}_${i}.pcap")"
+    pcappid=$(pgrep -n tcpdump)
+    sudo kill -2 ${pcappid}
 	sleep 14s
 done
 

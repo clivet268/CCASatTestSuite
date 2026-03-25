@@ -9,10 +9,11 @@ rangemin=400
 rangemax=400
 rangestep=100
 namestring="sender"
-bindaddr="0.0.0.0"
+bindaddr=""
 time=""
 extractuser=""
 extractip=""
+iperfport=""
 
 echowname() {
 	echo "[${namestring}]    ${1}"
@@ -21,14 +22,14 @@ echowname() {
 #TODO should pipefail?
 #set -o pipefail
 
-while getopts "ln:a:e:i:r:t:B:" arg; do
+while getopts "ln:a:e:i:r:t:B:p:" arg; do
 	case $arg in
 		a)
 			algorithm=$OPTARG
 			echowname "Using the ${algorithm} algorithm"
 			;;
 		B) 	
-    		bindaddr=$OPTARG
+    		bindaddr=" -B ${OPTARG}"
     		;;
 		e)
 			IFS='@'
@@ -42,12 +43,16 @@ while getopts "ln:a:e:i:r:t:B:" arg; do
 			runid=$OPTARG
 			echowname "Run ID ${runid}"
 			;;
-    l)
-    	echowname "Running in local mode"
-    	locrun=1
-    	;;
+		l)
+			echowname "Running in local mode"
+			locrun=1
+			;;
 		n) 	
     		numruns=$OPTARG
+    		;;
+		p) 	
+    		iperfport=" -p ${OPTARG}"
+    		echowname "iperf port : ${iperfport}"
     		;;
 		r)
 			if [[ ${time} != "" ]]; then
@@ -86,7 +91,7 @@ rmlock() {
 	echowname "Removing lock..."
 	rm -f "${lockfile}"
 	kill "${tailpid}" > /dev/null 2> /dev/null
-	kill "${tsharkpid}" > /dev/null 2> /dev/null
+	kill "${pcappid}" > /dev/null 2> /dev/null
 	pkill iperf3
 	exit
 }
@@ -150,15 +155,16 @@ if [[ $(sudo sysctl net.ipv4.tcp_congestion_control) != "net.ipv4.tcp_congestion
 	fi
 fi
 
-sudo sysctl -w net.ipv4.tcp_window_scaling = 1
-sudo sysctl -w net.ipv4.tcp_rmem="26214400	26214400	26214400"
-sudo sysctl -w net.ipv4.tcp_wmem="26214400	26214400	26214400"
-sudo sysctl -w net.core.rmem_max="26214400"
-sudo sysctl -w net.core.wmem_max="26214400"
-sudo sysctl -w net.core.rmem_default="26214400"
-sudo sysctl -w net.core.wmem_default="26214400"
+sudo sysctl -w net.ipv4.tcp_window_scaling=1
+sudo sysctl -w net.ipv4.tcp_rmem="262144000	262144000	262144000"
+sudo sysctl -w net.ipv4.tcp_wmem="262144000	262144000	262144000"
+sudo sysctl -w net.core.rmem_max="262144000"
+sudo sysctl -w net.core.wmem_max="262144000"
+sudo sysctl -w net.core.rmem_default="262144000"
+sudo sysctl -w net.core.wmem_default="262144000"
 
 sudo sysctl net.ipv4.tcp_congestion_control >> "${logpath}${date}.sysconf"
+sudo sysctl net.ipv4.tcp_no_metrics_save >> "${logpath}${date}.sysconf"
 sudo sysctl net.ipv4.tcp_window_scaling >> "${logpath}${date}.sysconf"
 sudo sysctl net.ipv4.tcp_rmem >> "${logpath}${date}.sysconf"
 sudo sysctl net.ipv4.tcp_wmem >> "${logpath}${date}.sysconf"
@@ -206,27 +212,28 @@ for (( r = rangemin; r <= (rangemax); r += rangestep )); do
     #sudo tshark -Y "tcp.port==5201" >> ${runpath}/${date}_${i}.tshark.log &
     # Packet count is written to stderr so to suppress packet counts in terminal
     #  do 2> /dev/null
-    sudo tshark -s 60 -f "not arp" >> "${thislogdir}${thislog}.tsharklog" 2> /dev/null &
-    tsharkpid=$!
+    sudo tcpdump -w "${thislogdir}${thislog}.pcap" -s 120 -f "tcp[tcpflags] & tcp-ack != 0 and port 5201" &
+	pcappid=$!
     echowname "Waiting for reciever..."
     
     if [[ $locrun == 0 ]]; then
-      # -n is client side only, even if running n reverse
-      # --one-off should keep things cleaner
-      # in this setup you should be sending, so client in -R
-      #https://github.com/esnet/iperf/issues/1308
-      iperf3 -B "${bindaddr}" -s --one-off >> "${thislogdir}${thislog}.iperflog"
+		# -n is client side only, even if running n reverse
+    	# --one-off should keep things cleaner
+    	# in this setup you should be sending, so client in -R
+    	#https://github.com/esnet/iperf/issues/1308
+    	echowname "iperf3 -V -s --one-off${bindaddr}${iperfport} >> ${thislogdir}${thislog}.iperflog"
+    	iperf3 -V -s --one-off${bindaddr}${iperfport} >> "${thislogdir}${thislog}.iperflog"
     else
     	#in this setup you should be sending as the
-    	iperf3 -B "${bindaddr}" "${configstr}" -c ccasatpi.dyn.wpi.edu >> "${thislogdir}${thislog}.iperflog"
+    	iperf3 ${bindaddr}${configstr}${iperfport} -c ccasatpi.dyn.wpi.edu >> "${thislogdir}${thislog}.iperflog"
     fi
     echowname "Complete"
     sleep 0.1s
     #sudo pkill iperf3
     kill ${tailpid}
     sleep 0.5s
-    kill ${tsharkpid}
-    echo "runconf : ${time}" >> "${thislogdir}${thislog}.log"
+    kill ${pcappid}
+    echo "runconf : ${time},[${algorithm}]" >> "${thislogdir}${thislog}.log"
   done
 done
 

@@ -445,6 +445,7 @@ static void hystartpp_adjust_cwnd(struct sock *sk, u32 acked) {
                         logadditional(sk, "HSPP NEW ENTERED CSS AT ROUND", ca->hspp_round_counter);
                         logadditional(sk, "HSPP BASELINE OLD BASELINEMINRTT", ca->hspp_css_baseline_minrtt);
                         logadditional(sk, "HSPP BASELINE NEW BASELINEMINRTT", ca->hspp_current_round_minrtt);
+                        logadditional(sk, "HSPP RTT_THRESH", rtt_thresh);
 			ca->hspp_css_baseline_minrtt = ca->hspp_current_round_minrtt;
 			ca->hspp_entered_css_at_round = ca->hspp_round_counter;
 			ca->hspp_flag = HSPP_IN_CSS;
