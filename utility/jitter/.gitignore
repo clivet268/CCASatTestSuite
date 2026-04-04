@@ -1,6 +1,6 @@
 jitterOutput**/*
 **.csv
-
+graphs/
 **/*.zip
 
 __pycache__/
