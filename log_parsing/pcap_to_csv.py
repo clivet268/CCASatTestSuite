@@ -1,5 +1,6 @@
 import argparse
 import subprocess
+import os
 import csv
 from pathlib import Path
 
@@ -89,33 +90,12 @@ def main():
             print(f"Warning: Server directory not found for {server} at {server_path}. Skipping.")
             continue
 
-        # Iterate over timestamp directories
-        for timestamp_dir in server_path.iterdir():
-            if not timestamp_dir.is_dir():
-                continue
-            # Inside timestamp_dir
-            subdirs = list(timestamp_dir.iterdir())
-            if not subdirs:
-                continue
-            # now in subdir search for path one with _45s end
-            pcap_dir = None
-            for sub in subdirs:
-                if sub.is_dir() and sub.name.endswith('_45s'):
-                    pcap_dir = sub
-                    break
-            if pcap_dir is None:
-                continue
-
-            # Find the pcap file
+            # Find the pcap files recursively from path
             pcap_files = list(pcap_dir.glob('*.pcap'))
-            if not pcap_files:
-                print(f"Warning: No PCAP file found in {pcap_dir}. Skipping.")
-                continue
-            pcap_file = pcap_files[0]  # Assuming one pcap per dir
-
-            output_dir = Path(args.outdir)
-            output_dir.mkdir(parents=True, exist_ok=True)
-            csv_output = output_dir / f"{server}_{timestamp_dir.name}_45s.csv"
+            for pcap_file in pcap_files:
+            	output_dir = Path(args.outdir)
+            	output_dir.mkdir(parents=True, exist_ok=True)
+            	csv_output = output_dir / f"{server}_{pcap_file.stem}_45s.csv"
 
             print(f"Processing {pcap_file}...")
             convert_pcap_to_csv(pcap_file, csv_output)
