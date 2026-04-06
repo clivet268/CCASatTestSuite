@@ -90,12 +90,12 @@ def main():
             print(f"Warning: Server directory not found for {server} at {server_path}. Skipping.")
             continue
 
-            # Find the pcap files recursively from path
-            pcap_files = list(pcap_dir.glob('*.pcap'))
-            for pcap_file in pcap_files:
-            	output_dir = Path(args.outdir)
-            	output_dir.mkdir(parents=True, exist_ok=True)
-            	csv_output = output_dir / f"{server}_{pcap_file.stem}_45s.csv"
+        # Find the pcap files recursively from path
+        pcap_files = list(server_path.rglob('*.pcap'))
+        for pcap_file in pcap_files:
+            output_dir = Path(args.outdir)
+            output_dir.mkdir(parents=True, exist_ok=True)
+            csv_output = output_dir / f"{server}_{pcap_file.stem}.csv"
 
             print(f"Processing {pcap_file}...")
             convert_pcap_to_csv(pcap_file, csv_output)
