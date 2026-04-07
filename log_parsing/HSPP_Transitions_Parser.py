@@ -18,8 +18,9 @@ class FG:
     SUMMARY = flags[3]
 
 class dataformat:
-    def __init__(self,filename=None) -> None:
+    def __init__(self,filename='') -> None:
         self.filename = filename
+
         self.segmentsInSS = 0
         self.segmentsInCSS = 0
         self.totalTime = 0.0
@@ -103,15 +104,15 @@ def mainmain():
     
     if(not os.path.isfile(datastoreFile)):
         # print(dataformat().__dict__)
-        sdf = pd.DataFrame([dataformat().__dict__])
-        sdf.to_csv(datastoreFile)
+        var = dataformat()
+        print(var.__dict__)
+        sdf = pd.DataFrame([var.__dict__],)
+        sdf.to_csv(datastoreFile,index=False)
 
 
     mdf = pd.read_csv(datastoreFile)
-    pattern = r'(?<=\d)(?=\D)|(?<=\D)(?=\d)'
     look = "-jitter_"
     looklen = len(look)
-    # print(args.fileNames)
     for file in args.fileNames:
         file:str = file
         if(not os.path.isfile(file)):
@@ -131,10 +132,9 @@ def mainmain():
             else:
                 jitterAmount = float(strt[:-4])
         df = main(file,jitterAmount,jitterType)
-        mdf = pd.concat([mdf,pd.DataFrame([df.__dict__])])
-        # print(df.__dict__)
+        mdf = pd.concat([mdf,pd.DataFrame([df.__dict__])],ignore_index=True)
     
-    mdf.to_csv(datastoreFile)
+    mdf.to_csv(datastoreFile,index=False)
 
     pass
 
