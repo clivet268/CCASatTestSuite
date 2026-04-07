@@ -18,15 +18,27 @@ class FG:
     SUMMARY = flags[3]
 
 class dataformat:
-    segmentsInSS = 0
-    segmentsInCSS = 0
-    totalTime = 0.0
-    totalTimeSS = 0.0
-    totalTimeCSS = 0.0
-    percentSS = 0.0
-    percentCSS = 0.0
-    jitter = 0.0
-    jitterType = "PC"
+    def __init__(self,filename=None) -> None:
+        self.filename = filename
+        self.segmentsInSS = 0
+        self.segmentsInCSS = 0
+        self.totalTime = 0.0
+        self.totalTimeSS = 0.0
+        self.totalTimeCSS = 0.0
+        self.percentSS = 0.0
+        self.percentCSS = 0.0
+        self.jitter = 0.0
+        self.jitterType = "PC"
+        pass
+    # segmentsInSS = 0
+    # segmentsInCSS = 0
+    # totalTime = 0.0
+    # totalTimeSS = 0.0
+    # totalTimeCSS = 0.0
+    # percentSS = 0.0
+    # percentCSS = 0.0
+    # jitter = 0.0
+    # jitterType = "PC"
 
 
 datastoreFile = "aggregrateTransitions.csv"
@@ -69,7 +81,7 @@ def main(filename, jitterAmountHint:float, jitterTypeHint:str):
                 pass
         pass
     
-    data = dataformat()
+    data = dataformat(filename=filename)
     
     data.segmentsInSS = segmentsInSS
     data.segmentsInCSS = segmentsInCSS
@@ -89,6 +101,12 @@ def mainmain():
     parser.add_argument('fileNames',nargs="+")
     args = parser.parse_args()
     
+    if(not os.path.isfile(datastoreFile)):
+        # print(dataformat().__dict__)
+        sdf = pd.DataFrame([dataformat().__dict__])
+        sdf.to_csv(datastoreFile)
+
+
     mdf = pd.read_csv(datastoreFile)
     pattern = r'(?<=\d)(?=\D)|(?<=\D)(?=\d)'
     look = "-jitter_"
@@ -113,10 +131,10 @@ def mainmain():
             else:
                 jitterAmount = float(strt[:-4])
         df = main(file,jitterAmount,jitterType)
-        # mdf.insert([df.__dict__()])
-        print(df.__dict__)
+        mdf = pd.concat([mdf,pd.DataFrame([df.__dict__])])
+        # print(df.__dict__)
     
-    # mdf.to_csv(datastoreFile)
+    mdf.to_csv(datastoreFile)
 
     pass
 
