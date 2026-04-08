@@ -1,5 +1,6 @@
 import argparse
 import subprocess
+import platform
 import os
 import csv
 from pathlib import Path
@@ -8,17 +9,22 @@ from pathlib import Path
 def find_stream_with_most_packets(pcap_file): 
     MAX_ITER = 10
     MIN_NUM_PKTS = 5000
+    commandSr = "tshark"
+    if platform.system() == "Windows":
+        commandSr = r"C:\Program Files\Wireshark\tshark.exe"
 
     print(f"Searching for tcp.stream with more than {MIN_NUM_PKTS} packets...") 
-    for i in range(0, MAX_ITER + 1):
-        try:
-            result = subprocess.run([r"C:\Program Files\Wireshark\tshark.exe", "-r", str(pcap_file), "tcp.stream", "eq", str(i)], stdout=subprocess.PIPE, check=True, text=True) # Run tshark to filter by tcp.stream and count packets, this uses my wireshark path for windows.
-            pkt_count = result.stdout.count('\n') 
-            if pkt_count > MIN_NUM_PKTS:
-                print(f"Found tcp.stream {i} with {pkt_count} packets.")
-                return i
-        except subprocess.CalledProcessError:
-            pass
+    try:
+        result = subprocess.run([f"{commandSr} -r {pcap_file} -T fields -e tcp.stream | sort -n | uniq -c | sort -rn | head -n 1"], stdout=subprocess.PIPE, check=True, text=True, shell=True) # Run tshark to filter by tcp.stream and count packets, this uses my wireshark path for windows.
+        streamnum = int(result.stdout.split(" ")[2].strip())
+        pkt_count = int(result.stdout.split(" ")[1].strip())
+        if pkt_count > MIN_NUM_PKTS:
+            print(f"Found tcp.stream {streamnum} with {pkt_count} packets.")
+            return streamnum
+        else: 
+            print("Error, max sream oo shor") 
+    except subprocess.CalledProcessError:
+        pass
 
     print(f"Error: Could not find tcp.stream with more than {MIN_NUM_PKTS} packets!")
     return None 
@@ -33,9 +39,12 @@ def convert_pcap_to_csv(pcap_file, csv_output):
         "TSval", "TSecr", "duplicate_ack", "retransmission", "SACK", "CE", "byte in flight", "Lost segment", "Window Update", "Window Full",
         "ack_RTT" ,"advertised_window"
     ] # These are the fields we extract from tshark.
-
+    
+    commandSr = "tshark"
+    if platform.system() == "Windows":
+        commandSr = r"C:\Program Files\Wireshark\tshark.exe"
     command = [
-        r"C:\Program Files\Wireshark\tshark.exe",
+        commandSr,
         "-r", str(pcap_file), # Read from pcap file
         f"-Y", f"tcp.stream eq {stream_number}", # Filter to the selected tcp stream
         "-T", "fields", 
