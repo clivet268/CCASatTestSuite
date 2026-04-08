@@ -23,8 +23,10 @@ class dataformat:
 
         self.segmentsInSS = 0
         self.segmentsInCSS = 0
+        self.transitions = 0
         self.totalTime = 0.0
         self.totalTimeSS = 0.0
+        self.firstCSSTime = 0.0
         self.totalTimeCSS = 0.0
         self.percentSS = 0.0
         self.percentCSS = 0.0
@@ -55,6 +57,8 @@ def main(filename, jitterAmountHint:float, jitterTypeHint:str):
     # jitterTypes = {"MS":0,"PC":1}
     jitterAmount = jitterAmountHint
     jitterType = jitterTypeHint
+    transitions = 0
+    firstCSSTime = 0.0
 
 
 
@@ -67,16 +71,25 @@ def main(filename, jitterAmountHint:float, jitterTypeHint:str):
                     match fg:
                         case FG.CSS:
                             segmentsInCSS +=1
+                            transitions +=1
+                            if firstCSSTime <=0:
+                                pos = line.find("time=")
+                                pos2 = line.find("s")
+                                t = float(line[pos+5:pos2])
+                                firstCSSTime = t
                             break
                         case FG.SS:
                             segmentsInSS +=1
+                            transitions +=1
                             break
                         case FG.EXIT:
                             break
                         case FG.SUMMARY:
-                            totalTime = float(f.readline().split(sep='=')[1].strip()[:-1])
+                            # totalTime = float(f.readline().split(sep='=')[1].strip()[:-1])
+                            f.readline()
                             totalTimeSS = float(f.readline().split(sep='=')[1].split(sep=' ')[0].strip()[:-1])
                             totalTimeCSS =float(f.readline().split(sep='=')[1].split(sep=' ')[0].strip()[:-1])
+                            totalTime = totalTimeSS+totalTimeCSS
                             # totalTimeEXIT = float(f.readline().split(sep='=')[1].strip()[:-1])
                             break
                 pass
@@ -93,6 +106,8 @@ def main(filename, jitterAmountHint:float, jitterTypeHint:str):
     data.percentCSS = 1-(totalTimeSS/(totalTimeSS+totalTimeCSS))
     data.jitter = jitterAmount
     data.jitterType = jitterType
+    data.transitions = transitions
+    data.firstCSSTime = firstCSSTime
     
     return data
 
