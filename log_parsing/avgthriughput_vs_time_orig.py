@@ -105,7 +105,7 @@ def smooth_nanaware(x: np.ndarray, kernel: np.ndarray) -> np.ndarray:
     return np.divide(num, den, out=np.full_like(num, np.nan), where=den > 0)
 
 
-def run_exit_time_script(log_root: Path, exit_script: Path, exit_csv_out: Path) -> pd.DataFrame:
+def run_exit_time_script(log_root: Path, csv_root: Path, exit_script: Path,  exit_csv_out: Path,) -> pd.DataFrame:
     """
     Call exit_times_from_logs.py, let it print its terminal summary,
     then read the CSV.
@@ -114,6 +114,8 @@ def run_exit_time_script(log_root: Path, exit_script: Path, exit_csv_out: Path) 
         sys.executable,
         str(exit_script),
         str(log_root),
+        "--csv-root",
+        str(csv_root),
         "--out",
         str(exit_csv_out),
     ]
@@ -132,7 +134,7 @@ def run_exit_time_script(log_root: Path, exit_script: Path, exit_csv_out: Path) 
 
 def build_exit_time_map(exit_df: pd.DataFrame) -> Dict[str, float]:
     """
-    Return mean exit time in seconds per server.
+    Return median exit time in seconds per server.
     """
     if exit_df.empty:
         return {}
@@ -141,7 +143,7 @@ def build_exit_time_map(exit_df: pd.DataFrame) -> Dict[str, float]:
     if not required.issubset(exit_df.columns):
         raise ValueError(f"Exit CSV missing required columns: {required}")
 
-    grouped = exit_df.groupby("server", as_index=False)["exit_s"].mean()
+    grouped = exit_df.groupby("server", as_index=False)["exit_s"].median()
 
     exit_map: Dict[str, float] = {}
     for _, row in grouped.iterrows():
@@ -153,11 +155,11 @@ def main():
     ap = argparse.ArgumentParser(
         description=(
             "Plot average pcap-derived throughput vs time with 95% CI, and "
-            "overlay mean SS->CA exit time per congestion control as a dashed "
+            "overlay median SS->CA exit time per congestion control as a dashed "
             "vertical line in the matching color."
         )
     )
-    ap.add_argument("csv_dir", help="Directory containing throughput CSV files")
+    ap.add_argument("csv_root", help="Directory containing throughput CSV files")
     ap.add_argument("log_root", help="Root directory containing mlcnet*/.../*_45s.log files")
     ap.add_argument("out", help="Output PNG filename")
     ap.add_argument("title", help="Plot title (quote if it has spaces)")
@@ -175,23 +177,23 @@ def main():
     )
     args = ap.parse_args()
 
-    csv_dir = Path(args.csv_dir)
+    csv_root = Path(args.csv_root)
     log_root = Path(args.log_root)
     exit_script = Path(args.exit_script)
     exit_csv_out = Path(args.exit_csv_out)
 
-    if not csv_dir.exists():
-        raise SystemExit(f"CSV directory not found: {csv_dir}")
+    if not csv_root.exists():
+        raise SystemExit(f"CSV directory not found: {csv_root}")
     if not log_root.exists():
         raise SystemExit(f"Log root not found: {log_root}")
     if not exit_script.exists():
         raise SystemExit(f"Exit-time script not found: {exit_script}")
 
-    csv_files = list(csv_dir.glob("*.csv"))
+    csv_files = list(csv_root.glob("*.csv"))
     if not csv_files:
-        raise SystemExit(f"No CSV files found in {csv_dir}")
+        raise SystemExit(f"No CSV files found in {csv_root}")
 
-    exit_df = run_exit_time_script(log_root, exit_script, exit_csv_out)
+    exit_df = run_exit_time_script(log_root, csv_root, exit_script, exit_csv_out)
     exit_time_map = build_exit_time_map(exit_df)
 
     server_runs: Dict[str, List[np.ndarray]] = {}
@@ -263,6 +265,12 @@ def main():
                 label=f"{cca_name} avg exit ({exit_time_s:.2f}s)",
             )
 
+    # Cropps x-axis so it ends shortly after the last exit-time vertical line.
+    if exit_time_map:
+        last_exit_time = max(t for t in exit_time_map.values() if np.isfinite(t))
+        x_max = min(args.duration, last_exit_time + 4) # adds a few seconds of padding after the last exit time
+        ax.set_xlim(0, x_max)
+
     ax.set_xlabel("Time (seconds)")
     ax.set_ylabel("Throughput (Mb/s)")
     ax.set_title(args.title)
@@ -277,7 +285,7 @@ def main():
     for server in plotted_servers:
         print(f"{server}: {len(server_runs[server])} runs processed")
         if server in exit_time_map:
-            print(f"  mean exit time: {exit_time_map[server]:.6f}s")
+            print(f"  median exit time: {exit_time_map[server]:.6f}s")
 
 
 if __name__ == "__main__":
