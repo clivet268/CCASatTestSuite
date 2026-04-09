@@ -17,6 +17,9 @@ def find_stream_with_most_packets(pcap_file):
     try:
         result = subprocess.run([f"{commandSr} -r {pcap_file} -T fields -e tcp.stream | sort -n | uniq -c | sort -rn | head -n 1"], stdout=subprocess.PIPE, check=True, text=True, shell=True) # Run tshark to filter by tcp.stream and count packets, this uses my wireshark path for windows.
         cleaned = result.stdout.lstrip().split(" ")
+        if len(cleaned) < 2:
+            print("Invalid trace") 
+            return -1
         print(cleaned)
         streamnum = int(cleaned[1].strip())
         pkt_count = int(cleaned[0].strip())
@@ -85,6 +88,7 @@ def convert_pcap_to_csv(pcap_file, csv_output):
 
 
 def main():
+    noclobber = True
     ap = argparse.ArgumentParser(
         description="Convert *_45s.pcap files into per-run CSVs for mlcneta/b/c/d. The CSVs will contain packet-level data for the tcp stream with the most packets."
     )
@@ -107,6 +111,10 @@ def main():
             output_dir = Path(args.outdir)
             output_dir.mkdir(parents=True, exist_ok=True)
             csv_output = output_dir / f"{server}_{pcap_file.stem}.csv"
+            if noclobber:
+                if os.path.isfile(csv_output):
+                    print(f"not clobbering {csv_output}")
+                    continue
 
             print(f"Processing {pcap_file}...")
             convert_pcap_to_csv(pcap_file, csv_output)
