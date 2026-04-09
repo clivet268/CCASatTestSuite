@@ -16,8 +16,10 @@ def find_stream_with_most_packets(pcap_file):
     print(f"Searching for tcp.stream with more than {MIN_NUM_PKTS} packets...") 
     try:
         result = subprocess.run([f"{commandSr} -r {pcap_file} -T fields -e tcp.stream | sort -n | uniq -c | sort -rn | head -n 1"], stdout=subprocess.PIPE, check=True, text=True, shell=True) # Run tshark to filter by tcp.stream and count packets, this uses my wireshark path for windows.
-        streamnum = int(result.stdout.split(" ")[2].strip())
-        pkt_count = int(result.stdout.split(" ")[1].strip())
+        cleaned = result.stdout.lstrip().split(" ")
+        print(cleaned)
+        streamnum = int(cleaned[1].strip())
+        pkt_count = int(cleaned[0].strip())
         if pkt_count > MIN_NUM_PKTS:
             print(f"Found tcp.stream {streamnum} with {pkt_count} packets.")
             return streamnum
