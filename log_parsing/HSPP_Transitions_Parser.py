@@ -134,18 +134,19 @@ def mainmain():
             print("WARNING: filename: \"{file}\" does not exist -- skipping",file = sys.stderr)
             continue
         else:
-            print("PROCESSING: FILE \"{file}\"")
+            print(f"PROCESSING: FILE \"{file}\"")
 
         pos = file.find(look)
         jitterAmount = 0.0
         jitterType = "PC"
         if(pos > -1):
             strt = file[pos+looklen:-1]
+            after = strt.find("_")
             jitterType =  "MS" if "MS" in strt else "PC"
             if(jitterType=="MS"):
-                jitterAmount = float(strt[:-7])
+                jitterAmount = float(strt[:after-3])
             else:
-                jitterAmount = float(strt[:-4])
+                jitterAmount = float(strt[:after])
         df = main(file,jitterAmount,jitterType)
         mdf = pd.concat([mdf,pd.DataFrame([df.__dict__])],ignore_index=True)
     
