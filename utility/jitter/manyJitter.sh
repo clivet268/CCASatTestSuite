@@ -1,9 +1,9 @@
-#!/usr/bin/bash#!/usr/bin/env bash
+#!/usr/bin/bash
 # Calls the inner jitter script multiple times,
 # with jitter increasing by a fixed step each iteration.
 set -euo pipefail
 
-INNER_SCRIPT="./run_jitter.sh"
+INNER_SCRIPT="./recusiveJitter.sh"
 
 ########################################
 # Usage
