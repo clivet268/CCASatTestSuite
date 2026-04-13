@@ -22,3 +22,7 @@
 /reciever.out
 /sender.out
 /tests/
+
+**/log_parsing/**/*.png*
+**/log_parsing/**/*.txt*
+**/aggregrateTransitions.csv
