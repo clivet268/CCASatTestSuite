@@ -256,7 +256,7 @@ def main():
 
     if(dirname):
         dirname += os.sep
-        dirname = "jitterOutput"+os.sep+dirname
+        dirname = "jitterOutput3"+os.sep+dirname
     os.makedirs(dirname,exist_ok=True)
     outFileName = f'{dirname}{origName[0]}-jitter_{args.jitterAmount}{"-MS" if args.M else ""}{f".{origName[-1]}" if len(origName)>1 else ".trace"}'
     # print(outFileName)
