@@ -21,13 +21,13 @@ SERVER_TO_CCA: Dict[str, str] = {
 SERVER_ORDER = ["mlcneta", "mlcnetb", "mlcnetc", "mlcnetd"]
 
 SERVER_TO_SENDER_IP: Dict[str, str] = {
-    "mlcneta": "130.215.28.202",
-    "mlcnetb": "130.215.28.203",
-    "mlcnetc": "130.215.28.206",
-    "mlcnetd": "130.215.28.207",
+    "mlcneta": "184.62.125.3",
+    "mlcnetb": "184.62.125.3",
+    "mlcnetc": "184.62.125.3",
+    "mlcnetd": "184.62.125.3",
 }
 
-
+#interval_s: float = 0.05,
 def calculate_throughput_bins(
     csv_path: Path,
     server: str,
@@ -47,7 +47,7 @@ def calculate_throughput_bins(
         return np.full(int(np.ceil(duration_s / interval_s)), np.nan)
 
     length_col = None
-    for candidate in ["Frame_Length", "Length", "TCP_Length"]:
+    for candidate in ["Ack number"]:
         if candidate in df.columns:
             length_col = candidate
             break
@@ -83,9 +83,32 @@ def calculate_throughput_bins(
             (df_sender["Time"] >= bin_start) &
             (df_sender["Time"] < bin_end)
         ]
+        ##print(bin_packets)
 
         if not bin_packets.empty:
-            total_mbits = bin_packets[length_col].sum() * 8 * 1e-6
+        #TODO here we would need tofiler if ha binbacke had an ACK and hen record is lengh
+            ini = -1;
+            #bin_packets.sort_values(by='') 
+            #print(length_col)
+            #print(bin_packets[length_col])
+            #print(bin_packets[length_col].dtype)
+            #print(bin_packets[length_col].tolist())
+            #print(bin_packets[length_col].values.dtype)
+            #print(bin_packets[length_col].values.tolist())
+            #print()
+            #print(bin_packets[length_col])
+            #print()
+            whaever = bin_packets[length_col].values.tolist()
+            if len(whaever) > 1:
+                sumbin = whaever[-1] - whaever[0]
+            else:
+                sumbin = 0
+            
+            #for packe in range(len(bin_packets)):
+            #    if(ini == -1):
+                    
+            #total_mbits = bin_packets[length_col].sum() * 8 * 1e-6
+            total_mbits = sumbin * 8 * 1e-6
             throughputs[bin_idx] = total_mbits / interval_s
 
     return throughputs
@@ -105,7 +128,7 @@ def smooth_nanaware(x: np.ndarray, kernel: np.ndarray) -> np.ndarray:
     return np.divide(num, den, out=np.full_like(num, np.nan), where=den > 0)
 
 
-def run_exit_time_script(log_root: Path, csv_root: Path, exit_script: Path,  exit_csv_out: Path,) -> pd.DataFrame:
+def run_exit_time_script(log_root: Path, exit_script: Path, exit_csv_out: Path) -> pd.DataFrame:
     """
     Call exit_times_from_logs.py, let it print its terminal summary,
     then read the CSV.
@@ -114,8 +137,6 @@ def run_exit_time_script(log_root: Path, csv_root: Path, exit_script: Path,  exi
         sys.executable,
         str(exit_script),
         str(log_root),
-        "--csv-root",
-        str(csv_root),
         "--out",
         str(exit_csv_out),
     ]
@@ -134,7 +155,7 @@ def run_exit_time_script(log_root: Path, csv_root: Path, exit_script: Path,  exi
 
 def build_exit_time_map(exit_df: pd.DataFrame) -> Dict[str, float]:
     """
-    Return median exit time in seconds per server.
+    Return mean exit time in seconds per server.
     """
     if exit_df.empty:
         return {}
@@ -143,23 +164,43 @@ def build_exit_time_map(exit_df: pd.DataFrame) -> Dict[str, float]:
     if not required.issubset(exit_df.columns):
         raise ValueError(f"Exit CSV missing required columns: {required}")
 
-    grouped = exit_df.groupby("server", as_index=False)["exit_s"].median()
+    grouped = exit_df.groupby("server", as_index=False)["exit_s"].mean()
 
     exit_map: Dict[str, float] = {}
     for _, row in grouped.iterrows():
         exit_map[str(row["server"])] = float(row["exit_s"])
     return exit_map
-
+    
+# Source - https://stackoverflow.com/a/7968690
+# Posted by Yann, modified by community. See post 'Timeline' for change history
+# Retrieved 2026-04-12, License - CC BY-SA 3.0
+def adjustFigAspect(fig,aspect=1):
+    '''
+    Adjust the subplot parameters so that the figure has the correct
+    aspect ratio.
+    '''
+    xsize,ysize = fig.get_size_inches()
+    minsize = min(xsize,ysize)
+    xlim = .4*minsize/xsize
+    ylim = .4*minsize/ysize
+    if aspect < 1:
+        xlim *= aspect
+    else:
+        ylim /= aspect
+    fig.subplots_adjust(left=.5-xlim,
+                        right=.5+xlim,
+                        bottom=.5-ylim,
+                        top=.5+ylim)
 
 def main():
     ap = argparse.ArgumentParser(
         description=(
             "Plot average pcap-derived throughput vs time with 95% CI, and "
-            "overlay median SS->CA exit time per congestion control as a dashed "
+            "overlay mean SS->CA exit time per congestion control as a dashed "
             "vertical line in the matching color."
         )
     )
-    ap.add_argument("csv_root", help="Directory containing throughput CSV files")
+    ap.add_argument("csv_dir", help="Directory containing throughput CSV files")
     ap.add_argument("log_root", help="Root directory containing mlcnet*/.../*_45s.log files")
     ap.add_argument("out", help="Output PNG filename")
     ap.add_argument("title", help="Plot title (quote if it has spaces)")
@@ -177,23 +218,23 @@ def main():
     )
     args = ap.parse_args()
 
-    csv_root = Path(args.csv_root)
+    csv_dir = Path(args.csv_dir)
     log_root = Path(args.log_root)
     exit_script = Path(args.exit_script)
     exit_csv_out = Path(args.exit_csv_out)
 
-    if not csv_root.exists():
-        raise SystemExit(f"CSV directory not found: {csv_root}")
+    if not csv_dir.exists():
+        raise SystemExit(f"CSV directory not found: {csv_dir}")
     if not log_root.exists():
         raise SystemExit(f"Log root not found: {log_root}")
     if not exit_script.exists():
         raise SystemExit(f"Exit-time script not found: {exit_script}")
 
-    csv_files = list(csv_root.glob("*.csv"))
+    csv_files = list(csv_dir.glob("*.csv"))
     if not csv_files:
-        raise SystemExit(f"No CSV files found in {csv_root}")
+        raise SystemExit(f"No CSV files found in {csv_dir}")
 
-    exit_df = run_exit_time_script(log_root, csv_root, exit_script, exit_csv_out)
+    exit_df = run_exit_time_script(log_root, exit_script, exit_csv_out)
     exit_time_map = build_exit_time_map(exit_df)
 
     server_runs: Dict[str, List[np.ndarray]] = {}
@@ -210,11 +251,12 @@ def main():
             continue
 
         print(f"Processing {filename} for server {server}")
-        try:
-            throughputs = calculate_throughput_bins(csv_file, server, args.interval, args.duration)
-            server_runs.setdefault(server, []).append(throughputs)
-        except Exception as e:
-            print(f"Error processing {csv_file}: {e}")
+        throughputs = calculate_throughput_bins(csv_file, server, args.interval, args.duration)
+        server_runs.setdefault(server, []).append(throughputs)
+        #try:
+        #except Exception as e:
+        #    print(e)
+        #    print(f"Error processing {csv_file}: {e}")
 
     if not server_runs:
         raise SystemExit("No valid CSV files processed")
@@ -265,27 +307,29 @@ def main():
                 label=f"{cca_name} avg exit ({exit_time_s:.2f}s)",
             )
 
-    # Cropps x-axis so it ends shortly after the last exit-time vertical line.
-    if exit_time_map:
-        last_exit_time = max(t for t in exit_time_map.values() if np.isfinite(t))
-        x_max = min(args.duration, last_exit_time + 4) # adds a few seconds of padding after the last exit time
-        ax.set_xlim(0, x_max)
-
     ax.set_xlabel("Time (seconds)")
-    ax.set_ylabel("Throughput (Mb/s)")
+    ax.set_ylabel("Goodput (Mb/s)")
     ax.set_title(args.title)
     ax.legend()
     ax.grid(True, alpha=0.3)
 
+    plt.rcParams.update({'font.size': 15.0})
+    plt.rcParams.update({'font.weight' : 'bold'})
+    plt.rcParams.update({'lines.linewidth' : 6.0})
+
     plt.tight_layout()
-    plt.savefig(args.out, dpi=200, bbox_inches="tight")
+    plt.ylim(0, 300)
+    fig = plt.figure()
+    adjustFigAspect(fig,aspect=.75)
+    
+    fig.savefig(args.out, dpi=200, bbox_inches="tight")
     print(f"Saved plot to {args.out}")
 
     print("\nSummary:")
     for server in plotted_servers:
         print(f"{server}: {len(server_runs[server])} runs processed")
         if server in exit_time_map:
-            print(f"  median exit time: {exit_time_map[server]:.6f}s")
+            print(f"  mean exit time: {exit_time_map[server]:.6f}s")
 
 
 if __name__ == "__main__":

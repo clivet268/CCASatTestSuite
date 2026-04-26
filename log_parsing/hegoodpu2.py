@@ -21,10 +21,10 @@ SERVER_TO_CCA: Dict[str, str] = {
 SERVER_ORDER = ["mlcneta", "mlcnetb", "mlcnetc", "mlcnetd"]
 
 SERVER_TO_SENDER_IP: Dict[str, str] = {
-    "mlcneta": "130.215.28.202",
-    "mlcnetb": "130.215.28.203",
-    "mlcnetc": "130.215.28.206",
-    "mlcnetd": "130.215.28.207",
+    "mlcneta": "184.62.125.3",
+    "mlcnetb": "184.62.125.3",
+    "mlcnetc": "184.62.125.3",
+    "mlcnetd": "184.62.125.3",
 }
 
 
@@ -47,7 +47,7 @@ def calculate_throughput_bins(
         return np.full(int(np.ceil(duration_s / interval_s)), np.nan)
 
     length_col = None
-    for candidate in ["Frame_Length", "Length", "TCP_Length"]:
+    for candidate in ["Ack number"]:
         if candidate in df.columns:
             length_col = candidate
             break
@@ -85,7 +85,29 @@ def calculate_throughput_bins(
         ]
 
         if not bin_packets.empty:
-            total_mbits = bin_packets[length_col].sum() * 8 * 1e-6
+            #TODO here we would need tofiler if ha binbacke had an ACK and hen record is lengh
+            ini = -1;
+            #bin_packets.sort_values(by='') 
+            #print(length_col)
+            #print(bin_packets[length_col])
+            #print(bin_packets[length_col].dtype)
+            #print(bin_packets[length_col].tolist())
+            #print(bin_packets[length_col].values.dtype)
+            #print(bin_packets[length_col].values.tolist())
+            #print()
+            #print(bin_packets[length_col])
+            #print()
+            whaever = bin_packets[length_col].values.tolist()
+            if len(whaever) > 1:
+                sumbin = whaever[-1] - whaever[0]
+            else:
+                sumbin = 0
+            
+            #for packe in range(len(bin_packets)):
+            #    if(ini == -1):
+                    
+            #total_mbits = bin_packets[length_col].sum() * 8 * 1e-6
+            total_mbits = sumbin * 8 * 1e-6
             throughputs[bin_idx] = total_mbits / interval_s
 
     return throughputs
@@ -149,6 +171,27 @@ def build_exit_time_map(exit_df: pd.DataFrame) -> Dict[str, float]:
     for _, row in grouped.iterrows():
         exit_map[str(row["server"])] = float(row["exit_s"])
     return exit_map
+    
+# Source - https://stackoverflow.com/a/7968690
+# Posted by Yann, modified by community. See post 'Timeline' for change history
+# Retrieved 2026-04-12, License - CC BY-SA 3.0
+def adjustFigAspect(fig,aspect=1):
+    '''
+    Adjust the subplot parameters so that the figure has the correct
+    aspect ratio.
+    '''
+    xsize,ysize = fig.get_size_inches()
+    minsize = min(xsize,ysize)
+    xlim = .4*minsize/xsize
+    ylim = .4*minsize/ysize
+    if aspect < 1:
+        xlim *= aspect
+    else:
+        ylim /= aspect
+    fig.subplots_adjust(left=.5-xlim,
+                        right=.5+xlim,
+                        bottom=.5-ylim,
+                        top=.5+ylim)
 
 
 def main():
@@ -272,13 +315,21 @@ def main():
         ax.set_xlim(0, x_max)
 
     ax.set_xlabel("Time (seconds)")
-    ax.set_ylabel("Throughput (Mb/s)")
+    ax.set_ylabel("Goodput (Mb/s)")
     ax.set_title(args.title)
     ax.legend()
     ax.grid(True, alpha=0.3)
 
+    plt.rcParams.update({'font.size': 22})
+    plt.rcParams.update({'font.weight' : 'bold'})
+    plt.rcParams.update({'lines.linewidth' : 6.0})
+
     plt.tight_layout()
-    plt.savefig(args.out, dpi=200, bbox_inches="tight")
+    plt.ylim(0, 300)
+    fig = plt.figure()
+    adjustFigAspect(fig,aspect=.75)
+    
+    fig.savefig(args.out, dpi=200, bbox_inches="tight")
     print(f"Saved plot to {args.out}")
 
     print("\nSummary:")
