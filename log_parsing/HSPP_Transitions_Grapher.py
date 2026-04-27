@@ -17,6 +17,7 @@ def aggregateOnJitter(df:pd.DataFrame):
 
 def plot_jitter_graphs(result_df,suffix:str, output_dir='jitterDataGraph'):
     os.makedirs(output_dir, exist_ok=True)
+    file = open("dataNumbers","wt")
 
     # Helper to compute 95% CI from a dataframe of raw values grouped by jitter
     def compute_ci(df, col):
@@ -110,6 +111,13 @@ def plot_jitter_graphs(result_df,suffix:str, output_dir='jitterDataGraph'):
     plt.savefig(os.path.join(output_dir, f'graph3_first_css_time-{suffix}.png'), dpi=300)
     plt.close()
     print(f"Saved graph3_first_css_time{suffix}.png")
+    file.write("PercentCSS: "+str(means_css)+"\n")
+    file.write("FirstCSS: "+str(means_fcss)+"\n")
+    file.write("ExitTimes: "+str(means_time)+"\n")
+    groups = result_df.groupby('jitter')['transitions']
+    transitionCOuntmeans = groups.mean()
+    file.write("ExitTimes: "+str(transitionCOuntmeans)+"\n")
+
 
 def main():
     df = pd.read_csv(datastoreFile)
